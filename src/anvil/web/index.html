@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d10">
+<title>anvil — Documentación técnica</title>
+<style>
+  /* Sin CDN ni fuentes remotas: la planta puede no tener internet. */
+  :root{
+    --bg:#0b0d10; --panel:#14181d; --line:#252c34;
+    --tx:#e8edf2; --dim:#8d99a6; --accent:#ff8a3d; --ok:#3ddc84; --warn:#ffd166;
+    --tap:56px; /* objetivo tactil grande: se usa con guantes */
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--tx);
+       font:17px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       -webkit-text-size-adjust:100%}
+  header{position:sticky;top:0;z-index:5;background:var(--bg);
+         border-bottom:1px solid var(--line);padding:14px 16px env(safe-area-inset-top)}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.5px}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--dim);flex:none}
+  .dot.ok{background:var(--ok)} .dot.bad{background:#ff5c5c}
+  .meta{font-size:13px;color:var(--dim);margin-top:4px}
+  main{padding:16px;max-width:820px;margin:0 auto;padding-bottom:40px}
+  .ask{display:flex;flex-direction:column;gap:12px}
+  textarea{width:100%;min-height:96px;padding:14px;border-radius:12px;resize:vertical;
+    background:var(--panel);color:var(--tx);border:1px solid var(--line);font:inherit}
+  textarea:focus{outline:2px solid var(--accent);outline-offset:1px}
+  button{min-height:var(--tap);border:0;border-radius:12px;background:var(--accent);
+    color:#1a1005;font:600 18px/1 inherit;cursor:pointer}
+  button:disabled{opacity:.5;cursor:default}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+  .chip{background:var(--panel);border:1px solid var(--line);color:var(--dim);
+    border-radius:999px;padding:10px 14px;font-size:14px;cursor:pointer;min-height:44px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:16px;margin-top:16px}
+  .abstain{border-left:4px solid var(--warn)}
+  .abstain h2{margin:0 0 6px;font-size:16px;color:var(--warn)}
+  .cite{border-top:1px solid var(--line);padding-top:12px;margin-top:12px;font-size:15px}
+  .cite b{color:var(--accent)}
+  .sup{background:#4a2020;color:#ffb3b3;border-radius:6px;padding:2px 8px;font-size:13px}
+  .snippet{color:var(--dim);font-size:14px;margin-top:6px;
+    white-space:pre-wrap;overflow-x:auto}
+  footer{color:var(--dim);font-size:12px;text-align:center;padding:20px}
+  @media (prefers-color-scheme: light){
+    :root{--bg:#f6f7f9;--panel:#fff;--line:#dfe3e8;--tx:#12161a;--dim:#5d6773;--accent:#c2410c}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="dot" id="dot"></span> anvil</div>
+  <div class="meta" id="status">conectando…</div>
+</header>
+
+<main>
+  <form class="ask" id="f">
+    <textarea id="q" placeholder="¿Cuál es el torque de apriete del perno M24 grado 8.8 del cabezal?" autofocus></textarea>
+    <button id="b" type="submit">Consultar</button>
+  </form>
+
+  <div class="chips" id="ex">
+    <span class="chip">Torque M24 grado 8.8 del cabezal</span>
+    <span class="chip">Alarma E-114 del horno</span>
+    <span class="chip">Precalentamiento A516 Gr.70 25 mm</span>
+    <span class="chip">Procedimiento LOTO línea de colada</span>
+  </div>
+
+  <div id="out"></div>
+</main>
+
+<footer>Todo se procesa en este servidor. Ningún dato sale de la planta.</footer>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+async function health(){
+  try{
+    const r = await fetch('/api/health'); const d = await r.json();
+    $('#dot').className = 'dot ' + (d.ok ? 'ok' : 'bad');
+    $('#status').textContent = d.ok
+      ? `${d.docs} documentos · ${d.chunks} fragmentos · pgvector ${d.pgvector}`
+      : `sin conexión a la base: ${d.error||''}`;
+  }catch(e){
+    $('#dot').className='dot bad'; $('#status').textContent='servidor no disponible';
+  }
+}
+
+function render(d){
+  if(d.abstained){
+    return `<div class="card abstain">
+      <h2>No está en la documentación</h2>
+      <div>${esc(d.reason||'')}</div>
+      <div class="snippet">Abstenerse es una respuesta correcta: es preferible a una estimación plausible.</div>
+    </div>`;
+  }
+  const cites = (d.citations||[]).map(c => `
+    <div class="cite">
+      <b>${esc(c.title)}</b>${c.revision?` · Rev ${esc(c.revision)}`:''}
+      ${c.superseded_by?`<span class="sup">SUPERSEDIDA por ${esc(c.superseded_by)}</span>`:''}
+      · pág. ${c.page_from}${c.page_to!==c.page_from?'–'+c.page_to:''}
+      ${c.section_path?`<div class="snippet">${esc(c.section_path)}</div>`:''}
+      <div class="snippet">${esc(c.snippet)}</div>
+    </div>`).join('');
+  return `<div class="card"><div>${esc(d.answer)}</div>${cites}</div>
+    <div class="meta" style="padding:8px 4px">${d.latency_ms} ms${
+      d.verifier_passed===true?' · ✅ números verificados contra el documento':''}</div>`;
+}
+
+$('#f').addEventListener('submit', async e => {
+  e.preventDefault();
+  const q = $('#q').value.trim(); if(!q) return;
+  $('#b').disabled = true; $('#b').textContent = 'Consultando…';
+  $('#out').innerHTML = '';
+  try{
+    const r = await fetch('/api/ask', {method:'POST',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify({question:q})});
+    $('#out').innerHTML = render(await r.json());
+  }catch(err){
+    $('#out').innerHTML = `<div class="card abstain"><h2>Error de red</h2><div>${esc(err)}</div></div>`;
+  }
+  $('#b').disabled = false; $('#b').textContent = 'Consultar';
+});
+
+$('#ex').addEventListener('click', e => {
+  if(e.target.classList.contains('chip')){ $('#q').value = e.target.textContent; $('#q').focus(); }
+});
+
+health(); setInterval(health, 15000);
+</script>
+</body>
+</html>
