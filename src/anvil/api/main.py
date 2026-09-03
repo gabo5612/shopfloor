@@ -12,9 +12,14 @@ import time
 from pathlib import Path
 
 import psycopg
-from fastapi import FastAPI
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
+
+from anvil.ingest import JOBS, start_job
+
+UPLOAD_DIR = Path(os.environ.get("ANVIL_DOCS", Path.home() / "anvil-docs"))
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 DSN = os.environ.get("ANVIL_DSN", "postgresql://anvil:anvil@localhost:5433/anvil")
@@ -97,3 +102,64 @@ def ask(q: Ask) -> Answer:
 @app.get("/")
 def portal() -> FileResponse:
     return FileResponse(WEB_DIR / "index.html")
+
+
+# ---------------------------------------------------------------- admin
+
+
+@app.post("/api/admin/upload")
+async def upload(
+    file: UploadFile = File(...),
+    title: str = Form(""),
+    revision: str = Form(""),
+    vendor: str = Form(""),
+    equipment_tag: str = Form(""),
+    lang: str = Form("en"),
+) -> dict:
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(400, "Solo se aceptan archivos .pdf")
+    dest = UPLOAD_DIR / file.filename
+    dest.write_bytes(await file.read())
+    job = start_job(
+        dest, DSN,
+        title=title.strip() or dest.stem,
+        revision=revision.strip() or None,
+        vendor=vendor.strip() or None,
+        equipment_tag=equipment_tag.strip() or None,
+        lang=lang,
+    )
+    return job.as_dict()
+
+
+@app.get("/api/admin/jobs")
+def jobs() -> list[dict]:
+    return [j.as_dict() for j in sorted(JOBS.values(), key=lambda x: -x.started_at)]
+
+
+@app.get("/api/admin/documents")
+def documents() -> list[dict]:
+    with _conn() as c:
+        rows = c.execute(
+            """SELECT d.doc_id, d.title, d.revision, d.vendor, d.equipment_tag,
+                      d.lang, d.n_pages, d.ingested_at,
+                      (SELECT count(*) FROM chunk WHERE doc_id=d.doc_id) AS chunks
+               FROM document d ORDER BY d.ingested_at DESC"""
+        ).fetchall()
+    return [
+        {"doc_id": r[0], "title": r[1], "revision": r[2], "vendor": r[3],
+         "equipment_tag": r[4], "lang": r[5], "n_pages": r[6],
+         "ingested_at": r[7].isoformat(), "chunks": r[8]}
+        for r in rows
+    ]
+
+
+@app.delete("/api/admin/documents/{doc_id}")
+def delete_document(doc_id: str) -> dict:
+    with _conn() as c:
+        c.execute("DELETE FROM document WHERE doc_id=%s", (doc_id,))
+    return {"deleted": doc_id}
+
+
+@app.get("/admin")
+def admin_page() -> FileResponse:
+    return FileResponse(WEB_DIR / "admin.html")
