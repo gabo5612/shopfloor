@@ -36,11 +36,11 @@ Respondes SOLO con lo que dicen los PASAJES. Devuelves JSON valido, nada mas.
 Elige UNO de estos tres formatos:
 
 1) Si los pasajes responden la pregunta sin ambiguedad:
-{"status":"answer","answer":"<respuesta breve, con [n] de la fuente>"}
+{"status":"answer","answer":"respuesta breve terminada en el numero de pasaje entre corchetes, por ejemplo: 680 +/- 30 N.m [1]"}
 
 2) Si hay MAS DE UNA respuesta valida en los pasajes porque la pregunta no
    especifica un criterio (grado del perno, espesor, modelo, revision, etc.):
-{"status":"clarify","question":"<la pregunta que hace falta>","options":["<opcion 1>","<opcion 2>"]}
+{"status":"clarify","question":"la pregunta que hace falta","options":["valor 1","valor 2"]}
 
 3) Si los pasajes NO contienen la respuesta:
 {"status":"abstain"}

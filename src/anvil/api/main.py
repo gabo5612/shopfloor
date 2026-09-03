@@ -146,8 +146,9 @@ async def upload(
     equipment_tag: str = Form(""),
     lang: str = Form("en"),
 ) -> dict:
-    if not file.filename or not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(400, "Solo se aceptan archivos .pdf")
+    allowed = (".pdf", ".md", ".markdown")
+    if not file.filename or not file.filename.lower().endswith(allowed):
+        raise HTTPException(400, "Solo se aceptan archivos .pdf, .md o .markdown")
     dest = UPLOAD_DIR / file.filename
     dest.write_bytes(await file.read())
     job = start_job(

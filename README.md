@@ -20,7 +20,7 @@ docker-compose up -d                     # Postgres 18 + pgvector
 ## Estado
 
 - ✅ M0 — Postgres 18.6 + pgvector 0.8.6, config de texto `english`/`spanish`/`arabic`
-- ✅ M1 — parser docling con página garantizada + chunker estructural (9/9 tests)
+- ✅ M1 — parser docling (PDF) y Markdown, ambos con página garantizada + chunker estructural
 - ✅ Portal + panel de carga, ingesta en background
 - ✅ M2 — retrieval híbrido (denso + léxico con RRF)
 - ✅ M3 — generación con citas vía Qwen local

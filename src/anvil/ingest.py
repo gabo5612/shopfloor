@@ -16,6 +16,7 @@ import psycopg
 
 from anvil.chunk.structural import STRATEGY_VERSION, chunk_blocks
 from anvil.embed.client import DIM, MODEL, embed_batched, to_pgvector
+from anvil.parse.markdown import parse_markdown
 from anvil.parse.pdf import parse_pdf, sha256_of
 
 MAX_CHARS = 1800
@@ -49,7 +50,8 @@ def ingest(path: Path, dsn: str, *, title: str, revision: str | None,
            vendor: str | None, equipment_tag: str | None, lang: str, job: Job) -> None:
     try:
         job.status = "parsing"
-        blocks = parse_pdf(path)
+        suffix = path.suffix.lower()
+        blocks = parse_markdown(path) if suffix in (".md", ".markdown") else parse_pdf(path)
         job.n_blocks = len(blocks)
         job.n_pages = len({b.page_no for b in blocks})
 
