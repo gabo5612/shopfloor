@@ -79,6 +79,9 @@ def ingest(path: Path, dsn: str, *, title: str, revision: str | None,
                     (doc_id, b.page_no, b.content[:4000]),
                 )
             cfg = {"es": "spanish", "en": "english", "ar": "arabic"}.get(lang, "simple")
+            # El texto que se INDEXA lleva su encabezado de seccion; el que se
+            # ALMACENA queda puro. Sin esto, la tabla de "## Stack" no contiene
+            # la palabra "stack" y ninguna de las dos ramas la encuentra.
             for ch in chunks:
                 c.execute(
                     f"""INSERT INTO chunk
@@ -86,7 +89,9 @@ def ingest(path: Path, dsn: str, *, title: str, revision: str | None,
                          chunk_strategy_version)
                         VALUES (%s,%s,%s,%s,%s,%s,to_tsvector('{cfg}',%s),%s)""",
                     (doc_id, ch.page_from, ch.page_to, ch.section_path, ch.kind,
-                     ch.content, ch.content, STRATEGY_VERSION),
+                     ch.content,
+                     f"{ch.section_path}\n{ch.content}" if ch.section_path else ch.content,
+                     STRATEGY_VERSION),
                 )
         job.status = "embedding"
         _embed_pending(dsn, job)
@@ -113,7 +118,10 @@ def _embed_pending(dsn: str, job: Job | None = None) -> int:
     done = 0
     with psycopg.connect(dsn, autocommit=True) as c:
         rows = c.execute(
-            "SELECT chunk_id, content FROM chunk WHERE embedding IS NULL ORDER BY chunk_id"
+            "SELECT chunk_id,"
+            " CASE WHEN section_path IS NULL THEN content"
+            "      ELSE section_path || E'\n' || content END"
+            " FROM chunk WHERE embedding IS NULL ORDER BY chunk_id"
         ).fetchall()
         if not rows:
             return 0

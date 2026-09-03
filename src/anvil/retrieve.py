@@ -54,22 +54,40 @@ def _dense(cur, question: str) -> list[tuple]:
     return cur.fetchall()
 
 
+_STOP = {"cual","cuales","que","qué","como","cómo","donde","dónde","es","el","la","los",
+         "las","de","del","un","una","para","por","en","y","o","a","al","se","su","sus",
+         "the","of","is","what","which","where","how","and","or","to","for","in","on"}
+
+
+def _or_query(question: str) -> str:
+    """tsquery con OR: 'stack | trailplugin'.
+
+    plainto_tsquery usa AND, asi que una pregunta natural exige que TODAS sus
+    palabras esten en el mismo chunk y no encuentra nada. RRF ya se encarga de
+    ordenar: aqui conviene recuperar de mas, no de menos.
+    """
+    words = [w for w in re.findall(r"[\w.-]{2,}", question.lower())
+             if w not in _STOP]
+    return " | ".join(w.replace("'", "") for w in words) or "''"
+
+
 def _lexical(cur, question: str, lang: str) -> list[tuple]:
     cfg = _TS_CFG.get(lang, "simple")
     codes = _CODE.findall(question)
     # los codigos van tambien por ILIKE: el stemmer puede romperlos
+    q = _or_query(question)
     if codes:
         like = " OR ".join(["c.content ILIKE %s"] * len(codes))
         cur.execute(
-            _SELECT + f" WHERE c.tsv @@ plainto_tsquery('{cfg}', %s) OR ({like})"
-            f" ORDER BY ts_rank(c.tsv, plainto_tsquery('{cfg}', %s)) DESC LIMIT %s",
-            (question, *[f"%{c}%" for c in codes], question, POOL),
+            _SELECT + f" WHERE c.tsv @@ to_tsquery('{cfg}', %s) OR ({like})"
+            f" ORDER BY ts_rank(c.tsv, to_tsquery('{cfg}', %s)) DESC LIMIT %s",
+            (q, *[f"%{c}%" for c in codes], q, POOL),
         )
     else:
         cur.execute(
-            _SELECT + f" WHERE c.tsv @@ plainto_tsquery('{cfg}', %s)"
-            f" ORDER BY ts_rank(c.tsv, plainto_tsquery('{cfg}', %s)) DESC LIMIT %s",
-            (question, question, POOL),
+            _SELECT + f" WHERE c.tsv @@ to_tsquery('{cfg}', %s)"
+            f" ORDER BY ts_rank(c.tsv, to_tsquery('{cfg}', %s)) DESC LIMIT %s",
+            (q, q, POOL),
         )
     return cur.fetchall()
 
