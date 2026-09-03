@@ -17,6 +17,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
 from anvil.ingest import JOBS, backfill_embeddings, start_job
+from anvil.generate import answer_question
 from anvil.retrieve import search
 
 UPLOAD_DIR = Path(os.environ.get("ANVIL_DOCS", Path.home() / "anvil-docs"))
@@ -88,21 +89,31 @@ def ask(q: Ask) -> Answer:
             latency_ms=ms,
         )
 
+    gen = answer_question(q.question, hits, lang=q.lang)
+    ms = int((time.perf_counter() - t0) * 1000)
+
+    cites = [
+        Citation(
+            doc_id=h.doc_id, title=h.title, revision=h.revision,
+            superseded_by=h.superseded_by, page_from=h.page_from,
+            page_to=h.page_to, section_path=h.section_path,
+            snippet=h.content[:700],
+        )
+        for h in hits
+    ]
+
+    if gen.abstained:
+        return Answer(
+            answer=None, abstained=True,
+            reason=(gen.verdict.reason if gen.verdict
+                    else "El modelo no encontro la respuesta en los pasajes recuperados."),
+            citations=cites, latency_ms=ms, verifier_passed=False if gen.verdict else None,
+        )
+
     return Answer(
-        answer=None,
-        abstained=False,
-        reason="Pasajes encontrados. La redaccion con modelo local llega en M3; "
-               "por ahora se muestra el texto del documento tal cual.",
-        citations=[
-            Citation(
-                doc_id=h.doc_id, title=h.title, revision=h.revision,
-                superseded_by=h.superseded_by, page_from=h.page_from,
-                page_to=h.page_to, section_path=h.section_path,
-                snippet=h.content[:700],
-            )
-            for h in hits
-        ],
-        latency_ms=ms,
+        answer=gen.answer, abstained=False,
+        reason=gen.verdict.reason if gen.verdict else None,
+        citations=cites, latency_ms=ms, verifier_passed=True,
     )
 
 
