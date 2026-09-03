@@ -95,7 +95,9 @@ def ask(q: Ask) -> Answer:
                 """SELECT c.doc_id, d.title, d.revision, d.superseded_by,
                           c.page_from, c.page_to, c.section_path, c.content
                    FROM chunk c JOIN document d ON d.doc_id = c.doc_id
-                   WHERE c.chunk_id = ANY(%s)""", (hit.chunk_ids,),
+                   WHERE c.chunk_id = ANY(%s)
+                   ORDER BY array_position(%s, c.chunk_id)""",
+                (hit.chunk_ids, hit.chunk_ids),
             ).fetchall()
         return Answer(
             answer=hit.answer, abstained=False, cached=True,
