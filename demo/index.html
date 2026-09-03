@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d10">
+<title>anvil — Asistente on-prem de documentación técnica</title>
+<meta name="description" content="Demo estática de un asistente de documentación técnica local-first: búsqueda híbrida, clarificación determinista y verificación de datos contra el documento fuente.">
+<style>
+  :root{--bg:#0b0d10;--panel:#14181d;--line:#252c34;--tx:#e8edf2;--dim:#8d99a6;
+        --accent:#ff8a3d;--ok:#3ddc84;--warn:#ffd166;--tap:56px}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--tx);
+    font:17px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-text-size-adjust:100%}
+  header{position:sticky;top:0;z-index:5;background:var(--bg);
+    border-bottom:1px solid var(--line);padding:14px 16px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.5px}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--ok);flex:none}
+  .meta{font-size:13px;color:var(--dim);margin-top:4px}
+  main{padding:16px;max-width:820px;margin:0 auto;padding-bottom:40px}
+  .note{background:#1b1508;border:1px solid #3a2c10;border-radius:12px;padding:14px;
+    font-size:14px;color:#e8d9b8;margin-bottom:18px;line-height:1.55}
+  .note b{color:var(--warn)}
+  textarea{width:100%;min-height:92px;padding:14px;border-radius:12px;resize:vertical;
+    background:var(--panel);color:var(--tx);border:1px solid var(--line);font:inherit}
+  textarea:focus{outline:2px solid var(--accent);outline-offset:1px}
+  button{min-height:var(--tap);width:100%;margin-top:12px;border:0;border-radius:12px;
+    background:var(--accent);color:#1a1005;font:600 18px/1 inherit;cursor:pointer}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  .chip{background:var(--panel);border:1px solid var(--line);color:var(--dim);
+    border-radius:999px;padding:10px 14px;font-size:14px;cursor:pointer;min-height:44px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:16px;margin-top:16px}
+  .cached{border-left:4px solid var(--ok)}
+  .clarify{border-left:4px solid var(--accent)}
+  .abstain{border-left:4px solid var(--warn)}
+  .badge{display:inline-block;background:#10331f;color:var(--ok);border-radius:999px;
+    padding:3px 10px;font-size:12px;margin-bottom:10px}
+  .clarify h2{margin:0 0 4px;font-size:17px;color:var(--accent)}
+  .abstain h2{margin:0 0 6px;font-size:16px;color:var(--warn)}
+  .opts{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .opt{width:auto;margin:0;padding:0 20px;min-height:52px;font-size:17px}
+  .cite{border-top:1px solid var(--line);padding-top:12px;margin-top:12px;font-size:15px}
+  .cite b{color:var(--accent)}
+  .snippet{color:var(--dim);font-size:14px;margin-top:6px;white-space:pre-wrap;
+    overflow-x:auto;max-height:200px}
+  .vok{color:var(--ok);font-size:13px;margin-top:10px}
+  footer{color:var(--dim);font-size:12px;text-align:center;padding:24px 16px;line-height:1.7}
+  footer a{color:var(--accent)}
+  @media (prefers-color-scheme: light){
+    :root{--bg:#f6f7f9;--panel:#fff;--line:#dfe3e8;--tx:#12161a;--dim:#5d6773;--accent:#c2410c}
+    .note{background:#fff8ec;border-color:#f0dcb8;color:#5a4415}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="dot"></span> anvil</div>
+  <div class="meta" id="status">cargando corpus…</div>
+</header>
+
+<main>
+  <div class="note">
+    <b>Demo estática.</b> El sistema real corre <b>dentro de la planta</b>: Postgres + pgvector,
+    embeddings <code>bge-m3</code> y un modelo local que redacta — nada sale de la máquina.
+    Vercel no puede ejecutar esos modelos, así que esta copia lleva
+    <b>el corpus real ya indexado</b> y las respuestas <b>ya generadas por el modelo local</b>.
+    Lo que sí corre acá, idéntico al servidor, es todo lo determinista:
+    búsqueda léxica, detección de ambigüedad y verificación de datos contra el documento.
+  </div>
+
+  <form id="f">
+    <textarea id="q" placeholder="¿Cuál es el torque del perno M24 del cabezal?" autofocus></textarea>
+    <button type="submit">Consultar</button>
+  </form>
+
+  <div class="chips" id="ex">
+    <span class="chip">torque del perno M24 del cabezal</span>
+    <span class="chip">torque del perno M24 grado 8.8</span>
+    <span class="chip">alarma E-114 del horno</span>
+    <span class="chip">precalentamiento A516 Gr.70</span>
+    <span class="chip">stack de trailplugin</span>
+  </div>
+
+  <div id="out"></div>
+</main>
+
+<footer>
+  Todo se procesa en el dispositivo. Ningún dato sale de esta página.<br>
+  <span id="gen"></span>
+</footer>
+
+<script type="module">
+import { search, detectAmbiguity, cacheLookup, verify } from './anvil.js';
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let DATA = null, lastQ = '';
+
+const cite = h => `<div class="cite">
+  <b>${esc(h.doc?.title || h.doc)}</b>${h.doc?.revision ? ` · Rev ${esc(h.doc.revision)}` : ''}
+  · pág. ${h.p0}${h.p1 !== h.p0 ? '–' + h.p1 : ''}
+  ${h.sec ? `<div class="snippet">${esc(h.sec)}</div>` : ''}
+  <div class="snippet">${esc(h.text.slice(0, 600))}</div></div>`;
+
+function answer(q){
+  const hits = search(q, DATA, 6);
+  if (!hits.length) return `<div class="card abstain"><h2>No está en la documentación</h2>
+    <div>Ningún pasaje del corpus coincide con esa consulta.</div>
+    <div class="snippet">Abstenerse es una respuesta correcta: es preferible a una estimación plausible.</div></div>`;
+
+  const amb = detectAmbiguity(q, hits.map(h => h.text));
+  if (amb) return `<div class="card clarify"><h2>${esc(amb.question)}</h2>
+    <div class="snippet">La documentación da una respuesta distinta según este dato. Elegí una opción:</div>
+    <div class="opts">${amb.options.map(o => `<button class="opt" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>`;
+
+  const hit = cacheLookup(q, DATA);
+  if (hit){
+    const cited = DATA.chunks.filter(c => hit.chunk_ids.includes(c.id))
+      .map(c => ({...c, doc: DATA.docs.find(d => d.doc_id === c.doc)}));
+    const v = verify(hit.a, cited.map(c => c.text));
+    return `<div class="card cached">
+      <div class="badge">⚡ respuesta ya verificada · ${hit.hits} usos${hit.confirmed ? ' · confirmada por un operario' : ''}</div>
+      <div>${esc(hit.a)}</div>
+      ${v.passed ? `<div class="vok">✅ ${v.checked} dato(s) verificados contra el documento citado, acá en el navegador.</div>` : ''}
+      ${cited.map(cite).join('')}</div>`;
+  }
+
+  return `<div class="meta" style="padding:6px 4px">${hits.length} pasaje(s) encontrados ·
+    esta copia no ejecuta el modelo, así que muestra el texto del documento tal cual</div>
+    <div class="card">${hits.map(cite).join('')}</div>`;
+}
+
+$('#f').addEventListener('submit', e => {
+  e.preventDefault();
+  const q = $('#q').value.trim(); if (!q || !DATA) return;
+  lastQ = q; $('#out').innerHTML = answer(q);
+  $('#out').scrollIntoView({behavior:'smooth', block:'nearest'});
+});
+$('#out').addEventListener('click', e => {
+  const o = e.target.dataset?.o;
+  if (o){ $('#q').value = lastQ + ' ' + o; $('#f').requestSubmit(); }
+});
+$('#ex').addEventListener('click', e => {
+  if (e.target.classList.contains('chip')){ $('#q').value = e.target.textContent; $('#f').requestSubmit(); }
+});
+
+fetch('./corpus.json').then(r => r.json()).then(d => {
+  DATA = d;
+  $('#status').textContent =
+    `${d.docs.length} documentos · ${d.chunks.length} fragmentos · ${Object.keys(d.index).length} términos indexados`;
+  $('#gen').textContent = `Corpus exportado el ${d.generated_at.replace('T', ' ')}`;
+}).catch(() => { $('#status').textContent = 'no se pudo cargar el corpus'; });
+</script>
+</body>
+</html>
