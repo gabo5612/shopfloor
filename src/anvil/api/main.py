@@ -16,7 +16,8 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
-from anvil.ingest import JOBS, backfill_embeddings, start_job
+from anvil import cache
+from anvil.ingest import JOBS, backfill_embeddings, refresh_stale, start_job
 from anvil.generate import answer_question
 from anvil.retrieve import search
 
@@ -47,6 +48,11 @@ class Citation(BaseModel):
 
 class Answer(BaseModel):
     answer: str | None = None
+    cached: bool = False
+    cache_id: int | None = None
+    similarity: float | None = None
+    cache_hits: int | None = None
+    confirmed: bool | None = None
     abstained: bool
     needs_clarification: bool = False
     clarify_question: str | None = None
@@ -81,6 +87,32 @@ def health() -> JSONResponse:
 def ask(q: Ask) -> Answer:
     """Retrieval hibrido. Aun sin generacion: devuelve los pasajes con su cita."""
     t0 = time.perf_counter()
+
+    hit = cache.lookup(DSN, q.question, q.lang)
+    if hit:
+        with _conn() as c:
+            rows = c.execute(
+                """SELECT c.doc_id, d.title, d.revision, d.superseded_by,
+                          c.page_from, c.page_to, c.section_path, c.content
+                   FROM chunk c JOIN document d ON d.doc_id = c.doc_id
+                   WHERE c.chunk_id = ANY(%s)""", (hit.chunk_ids,),
+            ).fetchall()
+        return Answer(
+            answer=hit.answer, abstained=False, cached=True,
+            cache_id=hit.cache_id, similarity=hit.similarity,
+            cache_hits=hit.hits, confirmed=hit.confirmed,
+            reason=f"Respuesta ya verificada, reutilizada ({hit.similarity:.0%} "
+                   f"de coincidencia con: \u201c{hit.question}\u201d).",
+            citations=[
+                Citation(doc_id=r[0], title=r[1], revision=r[2], superseded_by=r[3],
+                         page_from=r[4], page_to=r[5], section_path=r[6],
+                         snippet=r[7][:700])
+                for r in rows
+            ],
+            latency_ms=int((time.perf_counter() - t0) * 1000),
+            verifier_passed=True,
+        )
+
     hits = search(DSN, q.question, lang=q.lang, k=6)
     ms = int((time.perf_counter() - t0) * 1000)
 
@@ -122,6 +154,7 @@ def ask(q: Ask) -> Answer:
             verifier_passed=False if gen.verdict else None,
         )
 
+    cache.store(DSN, q.question, q.lang, gen.answer, [h.chunk_id for h in hits])
     return Answer(
         answer=gen.answer, abstained=False,
         reason=gen.verdict.reason if gen.verdict else None,
@@ -199,3 +232,45 @@ def admin_page() -> FileResponse:
 @app.post("/api/admin/backfill")
 def backfill() -> dict:
     return backfill_embeddings(DSN).as_dict()
+
+
+class Feedback(BaseModel):
+    cache_id: int
+    correct: bool
+
+
+@app.post("/api/feedback")
+def feedback(f: Feedback) -> dict:
+    """Confirmacion humana. Un 👎 borra la entrada: no se vuelve a servir."""
+    cache.set_confirmed(DSN, f.cache_id, f.correct)
+    return {"ok": True}
+
+
+@app.get("/api/admin/cache")
+def cache_list() -> list[dict]:
+    with _conn() as c:
+        rows = c.execute(
+            """SELECT cache_id, question, lang, left(answer, 160), hits,
+                      confirmed, stale, created_at, refreshed_at
+               FROM qa_cache ORDER BY stale DESC, hits DESC, cache_id DESC
+               LIMIT 100"""
+        ).fetchall()
+    return [
+        {"cache_id": r[0], "question": r[1], "lang": r[2], "answer": r[3],
+         "hits": r[4], "confirmed": r[5], "stale": r[6],
+         "created_at": r[7].isoformat(),
+         "refreshed_at": r[8].isoformat() if r[8] else None}
+        for r in rows
+    ]
+
+
+@app.post("/api/admin/cache/refresh")
+def cache_refresh() -> dict:
+    return {"refreshed": refresh_stale(DSN)}
+
+
+@app.delete("/api/admin/cache/{cache_id}")
+def cache_delete(cache_id: int) -> dict:
+    with _conn() as c:
+        c.execute("DELETE FROM qa_cache WHERE cache_id = %s", (cache_id,))
+    return {"deleted": cache_id}

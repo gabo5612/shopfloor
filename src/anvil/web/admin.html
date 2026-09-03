@@ -80,6 +80,12 @@
   </div>
 
   <div class="card">
+    <h2>Preguntas respondidas (caché)</h2>
+    <button onclick="refreshCache()" style="margin:0 0 14px">Re-responder las pendientes</button>
+    <div id="cache"><div class="empty">Sin preguntas todavía</div></div>
+  </div>
+
+  <div class="card">
     <h2>Documentos indexados</h2>
     <div id="docs"><div class="empty">Sin documentos todavía</div></div>
   </div>
@@ -108,11 +114,11 @@ async function refresh(){
   try{
     const jobs=await (await fetch('/api/admin/jobs')).json();
     $('#jobs').innerHTML = jobs.length ? `<table>
-      <tr><th>Archivo</th><th>Estado</th><th>Páginas</th><th>Chunks</th><th>Embeddings</th><th>Tiempo</th></tr>
+      <tr><th>Archivo</th><th>Estado</th><th>Páginas</th><th>Chunks</th><th>Embeddings</th><th>Re-resp.</th><th>Tiempo</th></tr>
       ${jobs.map(j=>`<tr>
         <td>${esc(j.filename)}${j.error?`<div style="color:var(--bad);font-size:12px">${esc(j.error)}</div>`:''}</td>
         <td><span class="st ${j.status}">${j.status}</span></td>
-        <td>${j.n_pages||'—'}</td><td>${j.n_chunks||'—'}</td><td>${j.n_embedded||'—'}</td><td>${j.elapsed_s}s</td>
+        <td>${j.n_pages||'—'}</td><td>${j.n_chunks||'—'}</td><td>${j.n_embedded||'—'}</td><td>${j.n_refreshed||'—'}</td><td>${j.elapsed_s}s</td>
       </tr>`).join('')}</table>` : '<div class="empty">Sin trabajos todavía</div>';
 
     const docs=await (await fetch('/api/admin/documents')).json();
@@ -124,8 +130,22 @@ async function refresh(){
         <td>${esc(d.lang)}</td><td>${d.n_pages}</td><td>${d.chunks}</td>
         <td><button class="ghost" onclick="del('${d.doc_id}')">Borrar</button></td>
       </tr>`).join('')}</table>` : '<div class="empty">Sin documentos todavía</div>';
+    const cache=await (await fetch('/api/admin/cache')).json();
+    $('#cache').innerHTML = cache.length ? `<table>
+      <tr><th>Pregunta</th><th>Respuesta</th><th>Usos</th><th>Estado</th><th></th></tr>
+      ${cache.map(c=>`<tr>
+        <td>${esc(c.question)}</td>
+        <td style="color:var(--dim)">${esc(c.answer)}</td>
+        <td>${c.hits}</td>
+        <td>${c.stale?'<span class="st parsing">re-responder</span>'
+              :c.confirmed===true?'<span class="st done">confirmada</span>'
+              :'<span class="st queued">sin confirmar</span>'}</td>
+        <td><button class="ghost" onclick="delCache(${c.cache_id})">Borrar</button></td>
+      </tr>`).join('')}</table>` : '<div class="empty">Sin preguntas todavía</div>';
   }catch(e){}
 }
+async function refreshCache(){ await fetch('/api/admin/cache/refresh',{method:'POST'}); refresh(); }
+async function delCache(id){ await fetch('/api/admin/cache/'+id,{method:'DELETE'}); refresh(); }
 async function backfill(){ await fetch('/api/admin/backfill',{method:'POST'}); refresh(); }
 async function del(id){
   if(!confirm('¿Borrar este documento y todos sus chunks?')) return;

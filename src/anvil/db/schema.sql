@@ -68,3 +68,24 @@ CREATE TABLE IF NOT EXISTS citation (
   score_rerank  REAL,
   PRIMARY KEY (query_id, chunk_id)
 );
+
+-- Cache semantico de preguntas respondidas.
+CREATE TABLE IF NOT EXISTS qa_cache (
+  cache_id      BIGSERIAL PRIMARY KEY,
+  question      TEXT NOT NULL,
+  lang          TEXT NOT NULL,
+  embedding     vector(1024) NOT NULL,
+  terms         TEXT[] NOT NULL,      -- guard determinista: M24, 8.8, E-114
+  answer        TEXT NOT NULL,
+  chunk_ids     BIGINT[] NOT NULL,
+  content_hash  TEXT NOT NULL,        -- si el documento cambia, el cache muere
+  doc_ids       TEXT[] NOT NULL DEFAULT '{}',
+  stale         BOOLEAN NOT NULL DEFAULT false,  -- doc cambio: se re-responde
+  refreshed_at  TIMESTAMPTZ,
+  hits          INT NOT NULL DEFAULT 0,
+  confirmed     BOOLEAN,              -- NULL sin confirmar, true 👍, false 👎
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_used_at  TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS qa_cache_emb_idx ON qa_cache
+  USING hnsw (embedding vector_cosine_ops);

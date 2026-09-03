@@ -39,6 +39,14 @@
   .clarify{border-left:4px solid var(--accent)}
   .clarify h2{margin:0 0 4px;font-size:17px;color:var(--accent)}
   .opts{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .cached{border-left:4px solid var(--ok)}
+  .badge{display:inline-block;background:#10331f;color:var(--ok);border-radius:999px;
+    padding:3px 10px;font-size:12px;margin-bottom:8px}
+  .fb{display:flex;gap:10px;margin-top:14px;align-items:center}
+  .fb button{min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--line);
+    background:transparent;color:var(--dim);font-size:15px;cursor:pointer}
+  .fb button:hover{color:var(--tx)}
+  .fb .done{color:var(--ok);font-size:14px}
   .opt{background:var(--accent);color:#1a1005;border:0;border-radius:12px;
     padding:0 20px;min-height:52px;font:600 17px/1 inherit;cursor:pointer}
   .abstain h2{margin:0 0 6px;font-size:16px;color:var(--warn)}
@@ -110,7 +118,14 @@ function render(d){
       <div class="snippet">Abstenerse es una respuesta correcta: es preferible a una estimación plausible.</div>
     </div>`;
   }
-  const head = d.answer ? `<div class="card"><div>${esc(d.answer)}</div></div>` :
+  const head = d.answer ? `<div class="card${d.cached?' cached':''}">
+      ${d.cached?`<div class="badge">⚡ respuesta ya verificada · ${d.cache_hits} usos${
+        d.confirmed?' · confirmada por un operario':''}</div>`:''}
+      <div>${esc(d.answer)}</div>
+      ${d.cache_id?`<div class="fb" data-cid="${d.cache_id}">
+        <span style="color:var(--dim);font-size:14px">¿Es correcta?</span>
+        <button data-ok="1">👍 Sí</button><button data-ok="0">👎 No</button></div>`:''}
+    </div>` :
     `<div class="meta" style="padding:4px">${(d.citations||[]).length} pasaje(s) en la documentación · ${esc(d.reason||'')}</div>`;
   const cites = (d.citations||[]).map(c => `
     <div class="cite">
@@ -140,9 +155,18 @@ $('#f').addEventListener('submit', async e => {
   $('#b').disabled = false; $('#b').textContent = 'Consultar';
 });
 
-$('#out').addEventListener('click', e => {
+$('#out').addEventListener('click', async e => {
   const o = e.target.dataset && e.target.dataset.o;
-  if(o){ $('#q').value = lastQ + ' ' + o; $('#f').requestSubmit(); }
+  if(o){ $('#q').value = lastQ + ' ' + o; $('#f').requestSubmit(); return; }
+  const ok = e.target.dataset && e.target.dataset.ok;
+  if(ok !== undefined && ok !== null){
+    const box = e.target.closest('.fb');
+    await fetch('/api/feedback', {method:'POST',headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({cache_id:+box.dataset.cid, correct: ok==='1'})});
+    box.innerHTML = ok==='1'
+      ? '<span class="done">✅ Confirmada. Se reutilizará para preguntas similares.</span>'
+      : '<span class="done" style="color:var(--warn)">Descartada. Se volverá a calcular.</span>';
+  }
 });
 
 $('#ex').addEventListener('click', e => {

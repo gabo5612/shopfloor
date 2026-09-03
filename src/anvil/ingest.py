@@ -14,6 +14,7 @@ from pathlib import Path
 
 import psycopg
 
+from anvil import cache
 from anvil.chunk.structural import STRATEGY_VERSION, chunk_blocks
 from anvil.embed.client import DIM, MODEL, embed_batched, to_pgvector
 from anvil.parse.markdown import parse_markdown
@@ -33,6 +34,7 @@ class Job:
     n_chunks: int = 0
     error: str | None = None
     n_embedded: int = 0
+    n_refreshed: int = 0
     started_at: float = field(default_factory=time.time)
     finished_at: float | None = None
 
@@ -95,6 +97,10 @@ def ingest(path: Path, dsn: str, *, title: str, revision: str | None,
                 )
         job.status = "embedding"
         _embed_pending(dsn, job)
+
+        # Una revision nueva invalida las respuestas que citaban este documento.
+        # No se borran: se re-responden contra la revision vigente.
+        job.n_refreshed = refresh_stale(dsn, doc_id=doc_id)
 
         job.status = "done"
     except Exception as e:
@@ -161,3 +167,33 @@ def backfill_embeddings(dsn: str) -> Job:
 
     threading.Thread(target=run, daemon=True).start()
     return job
+
+
+def refresh_stale(dsn: str, *, doc_id: str | None = None) -> int:
+    """Vuelve a responder las preguntas cuya documentacion cambio.
+
+    Se ejecuta sola tras cada ingesta. La pregunta nunca se pierde: si la
+    revision nueva ya no la responde, la entrada queda sin respuesta servible
+    pero la pregunta se conserva.
+    """
+    from anvil.generate import answer_question
+    from anvil.retrieve import search
+
+    if doc_id:
+        cache.mark_stale_for_doc(dsn, doc_id)
+    # Una revision nueva llega como archivo distinto -> doc_id distinto -> los
+    # chunks viejos ya no existen. Comprobar el doc_id no alcanza.
+    cache.mark_dangling_stale(dsn)
+
+    done = 0
+    for cache_id, question, lang in cache.stale_entries(dsn):
+        try:
+            hits = search(dsn, question, lang=lang, k=6)
+            gen = answer_question(question, hits, lang=lang)
+            answer = None if (gen.abstained or gen.needs_clarification) else gen.answer
+            cache.update_answer(dsn, cache_id, answer,
+                                [h.chunk_id for h in hits] if answer else [])
+            done += 1
+        except Exception:
+            continue      # una pregunta que falla no debe frenar al resto
+    return done
