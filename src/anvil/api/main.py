@@ -16,7 +16,8 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
-from anvil.ingest import JOBS, start_job
+from anvil.ingest import JOBS, backfill_embeddings, start_job
+from anvil.retrieve import search
 
 UPLOAD_DIR = Path(os.environ.get("ANVIL_DOCS", Path.home() / "anvil-docs"))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -44,7 +45,7 @@ class Citation(BaseModel):
 
 
 class Answer(BaseModel):
-    answer: str | None
+    answer: str | None = None
     abstained: bool
     reason: str | None = None
     citations: list[Citation] = []
@@ -74,27 +75,33 @@ def health() -> JSONResponse:
 
 @app.post("/api/ask", response_model=Answer)
 def ask(q: Ask) -> Answer:
-    """Contrato estable. El retrieval hibrido y el verificador entran en M2-M4.
-
-    Hoy responde con abstencion honesta si el corpus esta vacio: es la
-    respuesta CORRECTA, no un placeholder (§3, Problema 4).
-    """
+    """Retrieval hibrido. Aun sin generacion: devuelve los pasajes con su cita."""
     t0 = time.perf_counter()
-    with _conn() as c:
-        n = c.execute("SELECT count(*) FROM chunk").fetchone()[0]
+    hits = search(DSN, q.question, lang=q.lang, k=6)
     ms = int((time.perf_counter() - t0) * 1000)
 
-    if n == 0:
+    if not hits:
         return Answer(
             answer=None,
             abstained=True,
-            reason="No hay documentacion cargada todavia. Ningun documento indexado.",
+            reason="No se encontro nada en la documentacion indexada para esa consulta.",
             latency_ms=ms,
         )
+
     return Answer(
         answer=None,
-        abstained=True,
-        reason="Retrieval no implementado aun (M2). Abstenerse es la respuesta correcta.",
+        abstained=False,
+        reason="Pasajes encontrados. La redaccion con modelo local llega en M3; "
+               "por ahora se muestra el texto del documento tal cual.",
+        citations=[
+            Citation(
+                doc_id=h.doc_id, title=h.title, revision=h.revision,
+                superseded_by=h.superseded_by, page_from=h.page_from,
+                page_to=h.page_to, section_path=h.section_path,
+                snippet=h.content[:700],
+            )
+            for h in hits
+        ],
         latency_ms=ms,
     )
 
@@ -163,3 +170,8 @@ def delete_document(doc_id: str) -> dict:
 @app.get("/admin")
 def admin_page() -> FileResponse:
     return FileResponse(WEB_DIR / "admin.html")
+
+
+@app.post("/api/admin/backfill")
+def backfill() -> dict:
+    return backfill_embeddings(DSN).as_dict()

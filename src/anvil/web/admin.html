@@ -75,6 +75,7 @@
 
   <div class="card">
     <h2>Trabajos de ingesta</h2>
+    <button onclick="backfill()" style="margin:0 0 14px">Calcular embeddings faltantes</button>
     <div id="jobs"><div class="empty">Sin trabajos todavía</div></div>
   </div>
 
@@ -107,11 +108,11 @@ async function refresh(){
   try{
     const jobs=await (await fetch('/api/admin/jobs')).json();
     $('#jobs').innerHTML = jobs.length ? `<table>
-      <tr><th>Archivo</th><th>Estado</th><th>Páginas</th><th>Chunks</th><th>Tiempo</th></tr>
+      <tr><th>Archivo</th><th>Estado</th><th>Páginas</th><th>Chunks</th><th>Embeddings</th><th>Tiempo</th></tr>
       ${jobs.map(j=>`<tr>
         <td>${esc(j.filename)}${j.error?`<div style="color:var(--bad);font-size:12px">${esc(j.error)}</div>`:''}</td>
         <td><span class="st ${j.status}">${j.status}</span></td>
-        <td>${j.n_pages||'—'}</td><td>${j.n_chunks||'—'}</td><td>${j.elapsed_s}s</td>
+        <td>${j.n_pages||'—'}</td><td>${j.n_chunks||'—'}</td><td>${j.n_embedded||'—'}</td><td>${j.elapsed_s}s</td>
       </tr>`).join('')}</table>` : '<div class="empty">Sin trabajos todavía</div>';
 
     const docs=await (await fetch('/api/admin/documents')).json();
@@ -125,6 +126,7 @@ async function refresh(){
       </tr>`).join('')}</table>` : '<div class="empty">Sin documentos todavía</div>';
   }catch(e){}
 }
+async function backfill(){ await fetch('/api/admin/backfill',{method:'POST'}); refresh(); }
 async function del(id){
   if(!confirm('¿Borrar este documento y todos sus chunks?')) return;
   await fetch('/api/admin/documents/'+id,{method:'DELETE'}); refresh();

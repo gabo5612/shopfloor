@@ -15,6 +15,7 @@ from pathlib import Path
 import psycopg
 
 from anvil.chunk.structural import STRATEGY_VERSION, chunk_blocks
+from anvil.embed.client import DIM, MODEL, embed_batched, to_pgvector
 from anvil.parse.pdf import parse_pdf, sha256_of
 
 MAX_CHARS = 1800
@@ -30,6 +31,7 @@ class Job:
     n_blocks: int = 0
     n_chunks: int = 0
     error: str | None = None
+    n_embedded: int = 0
     started_at: float = field(default_factory=time.time)
     finished_at: float | None = None
 
@@ -84,6 +86,9 @@ def ingest(path: Path, dsn: str, *, title: str, revision: str | None,
                     (doc_id, ch.page_from, ch.page_to, ch.section_path, ch.kind,
                      ch.content, ch.content, STRATEGY_VERSION),
                 )
+        job.status = "embedding"
+        _embed_pending(dsn, job)
+
         job.status = "done"
     except Exception as e:
         job.status = "error"
@@ -98,4 +103,51 @@ def start_job(path: Path, dsn: str, **meta) -> Job:
         JOBS[job.job_id] = job
     threading.Thread(target=ingest, args=(path, dsn), kwargs={**meta, "job": job},
                      daemon=True).start()
+    return job
+
+
+def _embed_pending(dsn: str, job: Job | None = None) -> int:
+    """Calcula embeddings de los chunks que no lo tengan. Idempotente."""
+    done = 0
+    with psycopg.connect(dsn, autocommit=True) as c:
+        rows = c.execute(
+            "SELECT chunk_id, content FROM chunk WHERE embedding IS NULL ORDER BY chunk_id"
+        ).fetchall()
+        if not rows:
+            return 0
+        ids = [r[0] for r in rows]
+        texts = [r[1] for r in rows]
+        from anvil.embed.client import BATCH
+        for i in range(0, len(texts), BATCH):
+            vecs = embed_batched(texts[i : i + BATCH])
+            for cid, v in zip(ids[i : i + BATCH], vecs):
+                c.execute(
+                    "UPDATE chunk SET embedding=%s::vector, embed_model=%s, embed_dim=%s"
+                    " WHERE chunk_id=%s",
+                    (to_pgvector(v), MODEL, DIM, cid),
+                )
+            done += len(vecs)
+            if job:
+                job.n_embedded = done
+    return done
+
+
+def backfill_embeddings(dsn: str) -> Job:
+    """Para documentos ya cargados antes de que existiera el embedding."""
+    job = Job(job_id=uuid.uuid4().hex[:8], filename="(backfill de embeddings)")
+    with _LOCK:
+        JOBS[job.job_id] = job
+
+    def run() -> None:
+        try:
+            job.status = "embedding"
+            job.n_embedded = _embed_pending(dsn, job)
+            job.status = "done"
+        except Exception as e:
+            job.status = "error"
+            job.error = f"{type(e).__name__}: {e}"
+        finally:
+            job.finished_at = time.time()
+
+    threading.Thread(target=run, daemon=True).start()
     return job

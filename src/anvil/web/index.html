@@ -96,6 +96,8 @@ function render(d){
       <div class="snippet">Abstenerse es una respuesta correcta: es preferible a una estimación plausible.</div>
     </div>`;
   }
+  const head = d.answer ? `<div class="card"><div>${esc(d.answer)}</div></div>` :
+    `<div class="meta" style="padding:4px">${(d.citations||[]).length} pasaje(s) en la documentación · ${esc(d.reason||'')}</div>`;
   const cites = (d.citations||[]).map(c => `
     <div class="cite">
       <b>${esc(c.title)}</b>${c.revision?` · Rev ${esc(c.revision)}`:''}
@@ -104,7 +106,7 @@ function render(d){
       ${c.section_path?`<div class="snippet">${esc(c.section_path)}</div>`:''}
       <div class="snippet">${esc(c.snippet)}</div>
     </div>`).join('');
-  return `<div class="card"><div>${esc(d.answer)}</div>${cites}</div>
+  return head + `<div class="card">${cites}</div>
     <div class="meta" style="padding:8px 4px">${d.latency_ms} ms${
       d.verifier_passed===true?' · ✅ números verificados contra el documento':''}</div>`;
 }
