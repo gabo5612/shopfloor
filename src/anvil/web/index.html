@@ -36,6 +36,11 @@
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
     padding:16px;margin-top:16px}
   .abstain{border-left:4px solid var(--warn)}
+  .clarify{border-left:4px solid var(--accent)}
+  .clarify h2{margin:0 0 4px;font-size:17px;color:var(--accent)}
+  .opts{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .opt{background:var(--accent);color:#1a1005;border:0;border-radius:12px;
+    padding:0 20px;min-height:52px;font:600 17px/1 inherit;cursor:pointer}
   .abstain h2{margin:0 0 6px;font-size:16px;color:var(--warn)}
   .cite{border-top:1px solid var(--line);padding-top:12px;margin-top:12px;font-size:15px}
   .cite b{color:var(--accent)}
@@ -88,7 +93,16 @@ async function health(){
   }
 }
 
+let lastQ='';
 function render(d){
+  if(d.needs_clarification){
+    return `<div class="card clarify">
+      <h2>${esc(d.clarify_question)}</h2>
+      <div class="snippet">La documentación da una respuesta distinta según este dato. Elegí una opción:</div>
+      <div class="opts">${d.options.map(o=>
+        `<button class="opt" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div>
+    </div>`;
+  }
   if(d.abstained){
     return `<div class="card abstain">
       <h2>No está en la documentación</h2>
@@ -113,7 +127,7 @@ function render(d){
 
 $('#f').addEventListener('submit', async e => {
   e.preventDefault();
-  const q = $('#q').value.trim(); if(!q) return;
+  const q = $('#q').value.trim(); if(!q) return; lastQ = q;
   $('#b').disabled = true; $('#b').textContent = 'Consultando…';
   $('#out').innerHTML = '';
   try{
@@ -124,6 +138,11 @@ $('#f').addEventListener('submit', async e => {
     $('#out').innerHTML = `<div class="card abstain"><h2>Error de red</h2><div>${esc(err)}</div></div>`;
   }
   $('#b').disabled = false; $('#b').textContent = 'Consultar';
+});
+
+$('#out').addEventListener('click', e => {
+  const o = e.target.dataset && e.target.dataset.o;
+  if(o){ $('#q').value = lastQ + ' ' + o; $('#f').requestSubmit(); }
 });
 
 $('#ex').addEventListener('click', e => {

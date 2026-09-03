@@ -1,43 +1,67 @@
-"""Generacion con citas usando un modelo local (Ollama).
+"""Generacion con citas, clarificacion y verificacion (local, via Ollama).
 
-El modelo REDACTA. No decide. Todo dato numerico que produzca pasa por el
-verificador determinista (anvil/verify.py) antes de llegar al usuario.
+Flujo (CONTEXTO-ANVIL.md §3-§4):
+
+    pasajes -> el modelo TRIA en 3 salidas posibles
+                 ANSWER   : los pasajes responden sin ambiguedad
+                 CLARIFY  : hay >1 respuesta valida segun un criterio que la
+                            pregunta no fija -> se PREGUNTA en vez de adivinar
+                 ABSTAIN  : la respuesta no esta en los pasajes
+             -> verificador determinista sobre la respuesta Y sobre las opciones
+
+Por que CLARIFY existe: la Tabla 4-7 tiene M24 grado 8.8 -> 680 N.m y M24
+grado 10.9 -> 950 N.m. Ante "torque del M24" la respuesta correcta NO es
+elegir una: es preguntar el grado. Adivinar es un perno estirado.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import re
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
+from anvil.ambiguity import detect as detect_ambiguity
 from anvil.retrieve import Hit
 from anvil.verify import VerdictResult, verify
 
 MODEL = os.environ.get("ANVIL_GEN_MODEL", "qwen2.5-coder:7b")
 OLLAMA = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 MAX_RETRY = 1
-ABSTAIN = "NO_ESTA_EN_LA_DOCUMENTACION"
 
-SYSTEM = f"""Eres un asistente de documentacion tecnica de una planta industrial.
+SYSTEM = """Eres un asistente de documentacion tecnica de una planta industrial.
+Respondes SOLO con lo que dicen los PASAJES. Devuelves JSON valido, nada mas.
+
+Elige UNO de estos tres formatos:
+
+1) Si los pasajes responden la pregunta sin ambiguedad:
+{"status":"answer","answer":"<respuesta breve, con [n] de la fuente>"}
+
+2) Si hay MAS DE UNA respuesta valida en los pasajes porque la pregunta no
+   especifica un criterio (grado del perno, espesor, modelo, revision, etc.):
+{"status":"clarify","question":"<la pregunta que hace falta>","options":["<opcion 1>","<opcion 2>"]}
+
+3) Si los pasajes NO contienen la respuesta:
+{"status":"abstain"}
 
 REGLAS ABSOLUTAS:
-1. Responde UNICAMENTE con informacion presente en los PASAJES entregados.
-2. Copia los numeros, codigos y referencias EXACTAMENTE como aparecen. Nunca los
-   redondees, conviertas ni estimes.
-3. Si los pasajes no contienen la respuesta, responde exactamente: {ABSTAIN}
-4. No uses conocimiento propio. No inventes. No completes lo que falta.
-5. Responde en el idioma de la pregunta, de forma breve y directa.
-6. Cita el pasaje con [n] donde n es su numero."""
+- Copia numeros y codigos EXACTAMENTE como aparecen en los pasajes.
+- Las opciones de "clarify" deben ser valores que aparecen en los pasajes.
+- Nunca uses conocimiento propio. Nunca estimes ni redondees.
+- Responde en el idioma de la pregunta."""
 
 
 @dataclass
 class Generated:
-    answer: str | None
-    abstained: bool
-    verdict: VerdictResult | None
-    retries: int
-    model: str
+    answer: str | None = None
+    abstained: bool = False
+    needs_clarification: bool = False
+    clarify_question: str | None = None
+    options: list[str] = field(default_factory=list)
+    verdict: VerdictResult | None = None
+    retries: int = 0
+    model: str = MODEL
 
 
 def _call(messages: list[dict], timeout: int = 300) -> str:
@@ -45,7 +69,8 @@ def _call(messages: list[dict], timeout: int = 300) -> str:
         f"{OLLAMA}/api/chat",
         data=json.dumps({
             "model": MODEL, "messages": messages, "stream": False,
-            "options": {"temperature": 0},   # determinista: es documentacion, no creatividad
+            "format": "json",                    # Ollama fuerza JSON valido
+            "options": {"temperature": 0},       # documentacion, no creatividad
         }).encode(),
         headers={"Content-Type": "application/json"},
     )
@@ -53,10 +78,21 @@ def _call(messages: list[dict], timeout: int = 300) -> str:
         return json.load(r)["message"]["content"].strip()
 
 
+def _parse(raw: str) -> dict:
+    try:
+        d = json.loads(raw)
+        return d if isinstance(d, dict) else {}
+    except json.JSONDecodeError:
+        m = re.search(r"\{.*\}", raw, re.S)
+        try:
+            return json.loads(m.group()) if m else {}
+        except json.JSONDecodeError:
+            return {}
+
+
 def _passages(hits: list[Hit]) -> str:
     return "\n\n".join(
-        f"[{i}] ({h.title}"
-        + (f", Rev {h.revision}" if h.revision else "")
+        f"[{i}] ({h.title}" + (f", Rev {h.revision}" if h.revision else "")
         + f", pag. {h.page_from}) {h.content}"
         for i, h in enumerate(hits, 1)
     )
@@ -64,32 +100,61 @@ def _passages(hits: list[Hit]) -> str:
 
 def answer_question(question: str, hits: list[Hit], *, lang: str = "es") -> Generated:
     if not hits:
-        return Generated(None, True, None, 0, MODEL)
+        return Generated(abstained=True)
 
-    prompt = f"PASAJES:\n{_passages(hits)}\n\nPREGUNTA: {question}"
     texts = [h.content for h in hits]
-    messages = [{"role": "system", "content": SYSTEM},
-                {"role": "user", "content": prompt}]
 
+    # La ambiguedad se detecta ANTES de llamar al modelo, y de forma
+    # determinista: medido, el modelo elige 680 sin notar que existe 950.
+    amb = detect_ambiguity(question, texts)
+    if amb:
+        return Generated(
+            needs_clarification=True,
+            clarify_question=amb.question,
+            options=amb.options,
+            verdict=verify(" ".join(amb.options), texts),
+        )
+
+    messages = [
+        {"role": "system", "content": SYSTEM},
+        {"role": "user", "content": f"PASAJES:\n{_passages(hits)}\n\nPREGUNTA: {question}"},
+    ]
+
+    verdict: VerdictResult | None = None
     for attempt in range(MAX_RETRY + 1):
-        raw = _call(messages)
+        d = _parse(_call(messages))
+        status = d.get("status")
 
-        if ABSTAIN in raw or not raw:
-            return Generated(None, True, None, attempt, MODEL)
+        if status == "abstain" or not status:
+            return Generated(abstained=True, retries=attempt)
 
-        verdict = verify(raw, texts)
-        if verdict.passed:
-            return Generated(raw, False, verdict, attempt, MODEL)
+        if status == "clarify":
+            opts = [str(o) for o in (d.get("options") or []) if str(o).strip()]
+            # las opciones tambien se verifican: no puede ofrecer un grado inexistente
+            v = verify(" ".join(opts), texts)
+            if v.passed and len(opts) >= 2:
+                return Generated(
+                    needs_clarification=True,
+                    clarify_question=str(d.get("question") or "").strip()
+                    or "Falta un dato para responder con precision.",
+                    options=opts, verdict=v, retries=attempt,
+                )
+            verdict = v  # opciones inventadas: cae al reintento
 
-        if attempt < MAX_RETRY:
-            # feedback determinista al modelo: le decimos QUE dato invento
+        elif status == "answer":
+            ans = str(d.get("answer") or "").strip()
+            if ans:
+                verdict = verify(ans, texts)
+                if verdict.passed:
+                    return Generated(answer=ans, verdict=verdict, retries=attempt)
+
+        if attempt < MAX_RETRY and verdict is not None:
             messages += [
-                {"role": "assistant", "content": raw},
+                {"role": "assistant", "content": json.dumps(d)},
                 {"role": "user", "content":
                  "Estos datos NO aparecen en los pasajes: "
                  + ", ".join(verdict.unsupported)
-                 + f". Reescribe usando solo datos de los pasajes, o responde {ABSTAIN}."},
+                 + '. Corrige usando solo datos de los pasajes, o devuelve {"status":"abstain"}.'},
             ]
 
-    # se agotaron los intentos: abstenerse es mejor que entregar un dato inventado
-    return Generated(None, True, verdict, MAX_RETRY, MODEL)
+    return Generated(abstained=True, verdict=verdict, retries=MAX_RETRY)

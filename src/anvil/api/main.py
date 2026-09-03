@@ -48,6 +48,9 @@ class Citation(BaseModel):
 class Answer(BaseModel):
     answer: str | None = None
     abstained: bool
+    needs_clarification: bool = False
+    clarify_question: str | None = None
+    options: list[str] = []
     reason: str | None = None
     citations: list[Citation] = []
     latency_ms: int = 0
@@ -102,12 +105,21 @@ def ask(q: Ask) -> Answer:
         for h in hits
     ]
 
+    if gen.needs_clarification:
+        return Answer(
+            abstained=False, needs_clarification=True,
+            clarify_question=gen.clarify_question, options=gen.options,
+            reason="La documentacion da mas de una respuesta segun un dato que falta.",
+            citations=cites, latency_ms=ms, verifier_passed=True,
+        )
+
     if gen.abstained:
         return Answer(
-            answer=None, abstained=True,
+            abstained=True,
             reason=(gen.verdict.reason if gen.verdict
-                    else "El modelo no encontro la respuesta en los pasajes recuperados."),
-            citations=cites, latency_ms=ms, verifier_passed=False if gen.verdict else None,
+                    else "La respuesta no esta en la documentacion indexada."),
+            citations=cites, latency_ms=ms,
+            verifier_passed=False if gen.verdict else None,
         )
 
     return Answer(
