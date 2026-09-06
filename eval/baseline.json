@@ -1,0 +1,227 @@
+{
+  "suite": {
+    "name": "shopfloor-v2",
+    "path": "suites/shopfloor-v2.yaml",
+    "sha256": "d2368396ea6d6304b488e873c0d01aa36957c3b83d1d70795f63edd3e0820a3b",
+    "case_count": 39,
+    "category_counts": {
+      "factual_lookup": 15,
+      "alfanumerico_exacto": 8,
+      "procedimental": 7,
+      "multi_documento": 0,
+      "negative_control": 9,
+      "revision_supersedida": 0
+    }
+  },
+  "system": {
+    "kind": "http",
+    "target": "http://127.0.0.1:8080/api/ask"
+  },
+  "k": 5,
+  "categories": {
+    "factual_lookup": {
+      "n": 15,
+      "errors": 0,
+      "recall_at_5": 1.0,
+      "mrr": 0.73,
+      "precision_at_5": 0.3333333333333333,
+      "checks": {
+        "abstention_correct": {
+          "passed": 15,
+          "verifiable": 15,
+          "total": 15,
+          "rate": 1.0
+        },
+        "citation_hits_gold": {
+          "passed": 15,
+          "verifiable": 15,
+          "total": 15,
+          "rate": 1.0
+        },
+        "forbidden_codes_absent": {
+          "passed": 1,
+          "verifiable": 2,
+          "total": 15,
+          "rate": 0.5
+        },
+        "forbidden_numbers_absent": {
+          "passed": 10,
+          "verifiable": 11,
+          "total": 15,
+          "rate": 0.9090909090909091
+        },
+        "gold_numbers_present": {
+          "passed": 8,
+          "verifiable": 11,
+          "total": 15,
+          "rate": 0.7272727272727273
+        },
+        "grounded": {
+          "passed": 11,
+          "verifiable": 14,
+          "total": 15,
+          "rate": 0.7857142857142857
+        },
+        "revision_current": {
+          "passed": 5,
+          "verifiable": 12,
+          "total": 15,
+          "rate": 0.4166666666666667
+        }
+      }
+    },
+    "alfanumerico_exacto": {
+      "n": 8,
+      "errors": 0,
+      "recall_at_5": 1.0,
+      "mrr": 1.0,
+      "precision_at_5": 0.42500000000000004,
+      "checks": {
+        "abstention_correct": {
+          "passed": 8,
+          "verifiable": 8,
+          "total": 8,
+          "rate": 1.0
+        },
+        "citation_hits_gold": {
+          "passed": 8,
+          "verifiable": 8,
+          "total": 8,
+          "rate": 1.0
+        },
+        "forbidden_codes_absent": {
+          "passed": 4,
+          "verifiable": 4,
+          "total": 8,
+          "rate": 1.0
+        },
+        "forbidden_numbers_absent": {
+          "passed": 0,
+          "verifiable": 0,
+          "total": 8,
+          "rate": null
+        },
+        "gold_numbers_present": {
+          "passed": 0,
+          "verifiable": 0,
+          "total": 8,
+          "rate": null
+        },
+        "grounded": {
+          "passed": 6,
+          "verifiable": 6,
+          "total": 8,
+          "rate": 1.0
+        },
+        "revision_current": {
+          "passed": 4,
+          "verifiable": 8,
+          "total": 8,
+          "rate": 0.5
+        }
+      }
+    },
+    "procedimental": {
+      "n": 7,
+      "errors": 0,
+      "recall_at_5": 0.8571428571428571,
+      "mrr": 0.7857142857142857,
+      "precision_at_5": 0.5714285714285714,
+      "checks": {
+        "abstention_correct": {
+          "passed": 7,
+          "verifiable": 7,
+          "total": 7,
+          "rate": 1.0
+        },
+        "citation_hits_gold": {
+          "passed": 6,
+          "verifiable": 7,
+          "total": 7,
+          "rate": 0.8571428571428571
+        },
+        "forbidden_codes_absent": {
+          "passed": 0,
+          "verifiable": 0,
+          "total": 7,
+          "rate": null
+        },
+        "forbidden_numbers_absent": {
+          "passed": 0,
+          "verifiable": 0,
+          "total": 7,
+          "rate": null
+        },
+        "gold_numbers_present": {
+          "passed": 1,
+          "verifiable": 1,
+          "total": 7,
+          "rate": 1.0
+        },
+        "grounded": {
+          "passed": 5,
+          "verifiable": 5,
+          "total": 7,
+          "rate": 1.0
+        },
+        "revision_current": {
+          "passed": 5,
+          "verifiable": 6,
+          "total": 7,
+          "rate": 0.8333333333333334
+        }
+      }
+    },
+    "negative_control": {
+      "n": 9,
+      "errors": 0,
+      "recall_at_5": null,
+      "mrr": null,
+      "precision_at_5": null,
+      "checks": {
+        "abstention_correct": {
+          "passed": 7,
+          "verifiable": 9,
+          "total": 9,
+          "rate": 0.7777777777777778
+        },
+        "citation_hits_gold": {
+          "passed": 7,
+          "verifiable": 9,
+          "total": 9,
+          "rate": 0.7777777777777778
+        },
+        "forbidden_codes_absent": {
+          "passed": 0,
+          "verifiable": 0,
+          "total": 9,
+          "rate": null
+        },
+        "forbidden_numbers_absent": {
+          "passed": 0,
+          "verifiable": 0,
+          "total": 9,
+          "rate": null
+        },
+        "gold_numbers_present": {
+          "passed": 0,
+          "verifiable": 0,
+          "total": 9,
+          "rate": null
+        },
+        "grounded": {
+          "passed": 1,
+          "verifiable": 2,
+          "total": 9,
+          "rate": 0.5
+        },
+        "revision_current": {
+          "passed": 3,
+          "verifiable": 8,
+          "total": 9,
+          "rate": 0.375
+        }
+      }
+    }
+  }
+}

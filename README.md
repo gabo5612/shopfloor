@@ -103,6 +103,25 @@ shopfloor answers with citation markers (`720 +/- 30 N.m [1]`) and the harness r
 `[1]` as a number needing grounding — it was penalising the system **for citing properly**.
 The harness was fixed, not the golden set; the answers were already correct.
 
+## The gate
+
+```bash
+./scripts/eval.sh                 # measure and compare against eval/baseline.json
+./scripts/eval.sh --rebaseline    # accept the current run as the new floor
+```
+
+Exit codes come straight from `groundcheck gate`: **0** pass · **1** regression · **2** could
+not compare (the golden set moved, or `k` changed). Proven to work rather than assumed: fed
+the pre-fix run, it exits 1 and names the three metrics that fell.
+
+**It does not run in GitHub CI, on purpose.** The answers come from a local Qwen, and a
+hosted runner has no GPU to hold it. An eval there would measure a stand-in — a gate on
+something that never ships, which is worse than no gate because it reads like one. So the
+gate runs where the model lives, and CI checks the part that needs no model: that
+`eval/baseline.json` still names the golden set it was measured against, byte for byte, and
+that it carries real numbers. A baseline that has drifted from its set compares nothing, and
+one full of zeros can never fail.
+
 ## Attribution
 
 See `CONTEXTO-SHOPFLOOR.md` §7.1: `microsoft/markitdown` (MIT) was evaluated and measured

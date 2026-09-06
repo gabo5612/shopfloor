@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: python -m pytest -q
+
+  # Why the evaluation itself does not run here.
+  #
+  # shopfloor's answers come from a local Qwen. A GitHub-hosted runner has no
+  # GPU and would not hold the model, so any eval it could run would measure
+  # something that never ships — a gate on a stand-in, which is worse than no
+  # gate because it reads like one. The real gate is ./scripts/eval.sh and it
+  # runs where the model lives; `groundcheck gate` exits 1 on regression.
+  #
+  # What CI *can* check is that the committed floor stays honest: a baseline
+  # that drifts from the golden set it was measured against silently stops
+  # comparing anything. This job is cheap and needs no model.
+  baseline-is-honest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: gabo5612/groundcheck
+          path: .groundcheck
+
+      - name: the baseline names a golden set that exists, unchanged
+        run: |
+          python - <<'PY'
+          import hashlib, json, pathlib, sys
+
+          baseline = json.loads(pathlib.Path("eval/baseline.json").read_text())
+          suite = baseline["suite"]
+          path = pathlib.Path(".groundcheck") / suite["path"]
+
+          if not path.exists():
+              sys.exit(f"the baseline was measured against {suite['path']}, which no longer exists in groundcheck")
+
+          actual = hashlib.sha256(path.read_bytes()).hexdigest()
+          if actual != suite["sha256"]:
+              sys.exit(
+                  "the golden set moved since this baseline was measured.\n"
+                  f"  baseline: {suite['sha256']}\n"
+                  f"  suite now: {actual}\n"
+                  "Re-measure with ./scripts/eval.sh --rebaseline and commit the result.\n"
+                  "Never edit eval/baseline.json by hand: a floor that is typed in "
+                  "rather than measured is not a floor."
+              )
+          print(f"ok · {suite['name']} · {suite['case_count']} cases · sha {actual[:12]}")
+          PY
+
+      - name: the baseline carries real numbers, not placeholders
+        run: |
+          python - <<'PY'
+          import json, pathlib, sys
+
+          baseline = json.loads(pathlib.Path("eval/baseline.json").read_text())
+          cats = baseline.get("categories") or {}
+          if not cats:
+              sys.exit("the baseline has no categories: it measures nothing")
+
+          # A floor of all zeros passes every gate forever. It is the one way a
+          # committed baseline can look present and be useless. Each check is a
+          # {passed, verifiable, total, rate} bag and `rate` is None when the
+          # category admits no such metric, so only real rates are counted.
+          numbers = []
+          for row in cats.values():
+              for key in ("recall_at_5", "mrr", "precision_at_5"):
+                  if isinstance(row.get(key), (int, float)):
+                      numbers.append(row[key])
+              for check in (row.get("checks") or {}).values():
+                  rate = check.get("rate") if isinstance(check, dict) else None
+                  if isinstance(rate, (int, float)):
+                      numbers.append(rate)
+
+          if not numbers:
+              sys.exit("the baseline carries no measured value: a gate against it compares nothing")
+          if not any(v > 0 for v in numbers):
+              sys.exit("every value in the baseline is 0: a gate against this can never fail")
+          print(f"ok · {len(cats)} categories · {len(numbers)} measured values")
+          PY
