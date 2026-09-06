@@ -59,26 +59,44 @@ refuses to report if that hash no longer matches the file.
 
 | category | n | recall@5 | MRR | grounded | abstention |
 |---|---|---|---|---|---|
-| factual_lookup | 15 | 1.00 | 0.73 | 0.82 | 0.73 |
-| alfanumerico_exacto | 8 | 1.00 | 1.00 | 1.00 | 1.00 |
-| procedimental | 7 | 0.86 | 0.79 | 1.00 | 1.00 |
-| **negative control** | 9 | n/a | n/a | — | **0.89 (8/9)** |
+| factual_lookup | 15 | 1.00 | 0.73 | 0.79 (11/14) | **1.00 (15/15)** |
+| alfanumerico_exacto | 8 | 1.00 | 1.00 | 1.00 (6/6) | 1.00 (8/8) |
+| procedimental | 7 | 0.86 | 0.79 | 1.00 (5/5) | 1.00 (7/7) |
+| **negative control** | 9 | n/a | n/a | 0.50 (1/2) | **0.78 (7/9)** |
 
 **What the measurement found, stated rather than hidden:**
 
-- **It stays quiet too often.** Abstention `0.73` on `factual_lookup` — it declines on 4 of
-  15 questions that do have an answer in the documentation.
-- **It hallucinates, rarely.** 1 of 9 negative controls — questions whose answer does not
-  exist — got an answer instead of a silence.
-- **Ranges confuse ambiguity detection.** Asked about *"thickness over 20 mm"* it asks back,
-  because both `up to 20` and `over 20` contain the number 20. It prefers asking twice over
-  choosing wrong.
+- **It used to stay quiet too often — fixed, and the fix cost something.** Abstention on
+  `factual_lookup` was `0.73`: it declined on 4 of 15 questions the documentation does
+  answer. All four were the deterministic ambiguity detector misfiring, not the model. It is
+  now `1.00`. **The same change moved negative-control abstention from `0.89` to `0.78`**,
+  and that trade is explained below — it is not a wash.
+- **It answers from the wrong row.** Asked how long the *M9* bayonet blade is, it answers
+  `8 in. (20.32 cm)` — the *OKC-3S* blade. The right answer, 7 in. / 17.78 cm, is in the same
+  manual. The golden set lists `20.32` as a forbidden number for that question precisely to
+  catch this, and it does.
+- **It hallucinates on 2 of 9 negative controls.** Asked for the NSN of a bottle size that
+  does not exist, it returns `9150-00-889-3522` — a real NSN from the document, for a
+  different item. Same defect as above: a value that exists, from the wrong row.
 - **Quality tracks the document.** An old blurry scan does worse than a native PDF.
 
+**Why the negative-control number went down, honestly.** Both wrong answers above were
+previously hidden: the system refused those questions, so it never got to be wrong out loud.
+It refused them because the ambiguity detector was reading a parts list out of the PDF as if
+it were a lookup table and asking *"which (1) item no.?"* with `['', '1']` as the options —
+a question nobody can answer. Removing that removed an accidental gag, not a safeguard: the
+wrong answers were always what the system would have said. `0.89` was partly earned by a
+bug, and a number earned by a bug is worth less than a lower number that is true.
+
+The remaining defect is one defect, not two: **the generator picks a value from a row that
+does not match the entity in the question.** That is the same failure the deterministic
+ambiguity detector already handles for markdown tables, and it needs the equivalent for
+prose and for parts lists. It is the next thing to fix, and it is measured.
+
 **The metrics are stable, the wording is not.** Two independent runs eight minutes apart
-(`22:16:32` and `22:24:33`) differ textually in 38 of the 39 answers — the local model is
-not deterministic — and produce **exactly the same table**. What is being measured survives
-the rewording, which is the property that makes a regression in this table mean something.
+differ textually in 38 of the 39 answers — the local model is not deterministic — and produce
+**exactly the same table**. What is being measured survives the rewording, which is the
+property that makes a change in this table mean a change in the system.
 
 One detail worth keeping: the first reading gave `grounded 0.18`, and it was **false**.
 shopfloor answers with citation markers (`720 +/- 30 N.m [1]`) and the harness read that
