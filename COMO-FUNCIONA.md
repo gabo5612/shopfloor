@@ -292,15 +292,35 @@ actualización automática por revisión · portal móvil · panel de carga.
 
 ### Límites conocidos, dichos sin adornos
 
-- **El modelo falla a veces.** En una prueba de 12 preguntas se abstuvo una vez teniendo la
-  respuesta delante. Nunca inventó un dato — el verificador cumple su función — pero a veces
-  se calla de más.
+- **El modelo se calla de más.** Estaba anotado como sospecha desde una prueba a mano de 12
+  preguntas; **la medición lo confirmó**: abstención `0.73` en `factual_lookup`, es decir que
+  se abstiene en 4 de 15 preguntas que sí tienen respuesta en la documentación.
+- **Y alucina, poco pero alguna vez.** `1 de 9` controles negativos —preguntas cuya respuesta
+  no existe— recibió una respuesta en vez de un silencio.
 - **Los rangos confunden a la detección de ambigüedad.** Ante *"espesor de más de 20 mm"*
   pregunta igual, porque tanto `hasta 20` como `más de 20` contienen el número 20. Prefiere
   preguntar de más antes que elegir mal.
 - **La calidad depende del documento.** Un escaneo viejo y borroso da peor resultado que un
   PDF nativo.
-- **Todavía no hay una medición formal.** Sabemos que funciona porque se probaron casos a
-  mano. Eso es una anécdota, no una métrica. El siguiente paso es un banco de ~50 preguntas
-  con respuestas conocidas —incluyendo preguntas **sin** respuesta, para medir cuánto
-  inventa— que se pueda correr después de cada cambio.
+
+### ✅ Ya hay medición formal (2026-09-06)
+
+Esta sección decía *"todavía no hay una medición formal (…) el siguiente paso es un banco de
+~50 preguntas con respuestas conocidas, incluyendo preguntas **sin** respuesta"*. **Eso se
+construyó**: es [`assay`](https://github.com/gabo5612/assay), un harness de evals con su
+propio repo, y `anvil` es el primer sistema que midió.
+
+Golden set de 39 preguntas, congelado en git **antes** de que existiera cualquier corrida
+contra `anvil` — esa fecha es lo que hace la métrica auditable por un tercero.
+
+| categoría | n | recall@5 | MRR | grounded | abstención |
+|---|---|---|---|---|---|
+| factual_lookup | 15 | 1.00 | 0.73 | 0.82 | 0.73 |
+| alfanumerico_exacto | 8 | 1.00 | 1.00 | 1.00 | 1.00 |
+| procedimental | 7 | 0.86 | 0.79 | 1.00 | 1.00 |
+| **control negativo** | 9 | n/a | n/a | — | **0.89 (8/9)** |
+
+Un detalle que vale la pena: la primera lectura dio `grounded 0.18`, y era **falso**. `anvil`
+responde citando (`720 +/- 30 N.m [1]`) y el harness leía ese `[1]` como un número que había
+que fundamentar — castigaba al sistema **por citar bien**. Se arregló el harness, no el
+golden set; las respuestas ya eran correctas.
