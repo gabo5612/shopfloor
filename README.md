@@ -26,6 +26,14 @@ docker-compose up -d                     # Postgres 18 + pgvector, on :5433
 | **Upload panel** | `http://<server-ip>:8080/admin` |
 | API docs | `http://<server-ip>:8080/api/docs` |
 
+## Demo
+
+`demo/` is the same assistant without a server: the real corpus already indexed (6
+documents, 1809 chunks) and the answers the local model produced. The lexical search, the
+ambiguity detection and the data verifier run in the visitor's browser, identical to the
+server; the semantic half and the writing need the local models, which is exactly what the
+page says. Deploy with `cd demo && vercel --prod`. See [`demo/README.md`](demo/README.md).
+
 ## Pipeline
 
 `parse/` (docling for PDF, Markdown, page number guaranteed) → `chunk/` (structural) →
