@@ -14,11 +14,11 @@ from pathlib import Path
 
 import psycopg
 
-from anvil import cache
-from anvil.chunk.structural import STRATEGY_VERSION, chunk_blocks
-from anvil.embed.client import DIM, MODEL, embed_batched, to_pgvector
-from anvil.parse.markdown import parse_markdown
-from anvil.parse.pdf import parse_pdf, sha256_of
+from shopfloor import cache
+from shopfloor.chunk.structural import STRATEGY_VERSION, chunk_blocks
+from shopfloor.embed.client import DIM, MODEL, embed_batched, to_pgvector
+from shopfloor.parse.markdown import parse_markdown
+from shopfloor.parse.pdf import parse_pdf, sha256_of
 
 MAX_CHARS = 1800
 
@@ -133,7 +133,7 @@ def _embed_pending(dsn: str, job: Job | None = None) -> int:
             return 0
         ids = [r[0] for r in rows]
         texts = [r[1] for r in rows]
-        from anvil.embed.client import BATCH
+        from shopfloor.embed.client import BATCH
         for i in range(0, len(texts), BATCH):
             vecs = embed_batched(texts[i : i + BATCH])
             for cid, v in zip(ids[i : i + BATCH], vecs):
@@ -176,8 +176,8 @@ def refresh_stale(dsn: str, *, doc_id: str | None = None) -> int:
     revision nueva ya no la responde, la entrada queda sin respuesta servible
     pero la pregunta se conserva.
     """
-    from anvil.generate import answer_question
-    from anvil.retrieve import search
+    from shopfloor.generate import answer_question
+    from shopfloor.retrieve import search
 
     if doc_id:
         cache.mark_stale_for_doc(dsn, doc_id)

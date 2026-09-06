@@ -1,6 +1,6 @@
 """Contrato del detector determinista de ambiguedad."""
 
-from anvil.ambiguity import detect, parse_markdown_tables
+from shopfloor.ambiguity import detect, parse_markdown_tables
 
 TORQUE = """| Perno       |   Grado | Torque (N.m)   | Secuencia          |
 |-------------|---------|----------------|--------------------|

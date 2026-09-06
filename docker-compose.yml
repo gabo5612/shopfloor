@@ -1,20 +1,20 @@
 services:
   db:
     image: pgvector/pgvector:pg18
-    container_name: anvil-db
+    container_name: shopfloor-db
     environment:
-      POSTGRES_USER: anvil
-      POSTGRES_PASSWORD: anvil
-      POSTGRES_DB: anvil
+      POSTGRES_USER: shopfloor
+      POSTGRES_PASSWORD: shopfloor
+      POSTGRES_DB: shopfloor
     ports: ["5433:5432"]
     volumes:
-      - anvil-pgdata:/var/lib/postgresql
-      - ./src/anvil/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - shopfloor-pgdata:/var/lib/postgresql
+      - ./src/shopfloor/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U anvil -d anvil"]
+      test: ["CMD-SHELL", "pg_isready -U shopfloor -d shopfloor"]
       interval: 5s
       timeout: 3s
       retries: 20
 
 volumes:
-  anvil-pgdata:
+  shopfloor-pgdata:

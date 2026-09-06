@@ -11,7 +11,7 @@ import json
 import os
 import urllib.request
 
-MODEL = os.environ.get("ANVIL_EMBED_MODEL", "bge-m3")
+MODEL = os.environ.get("SHOPFLOOR_EMBED_MODEL", "bge-m3")
 DIM = 1024                      # bge-m3: hidden_size verificado = 1024
 BATCH = 32                      # medido: 3.3x mas rapido que batch=1
 OLLAMA = os.environ.get("OLLAMA_HOST", "http://localhost:11434")

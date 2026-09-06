@@ -1,4 +1,4 @@
--- anvil — esquema base. Ver CONTEXTO-ANVIL.md §6.
+-- shopfloor — esquema base. Ver CONTEXTO-SHOPFLOOR.md §6.
 CREATE EXTENSION IF NOT EXISTS vector;
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 

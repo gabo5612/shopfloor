@@ -1,4 +1,4 @@
-"""Verificador determinista (CONTEXTO-ANVIL.md §4).
+"""Verificador determinista (CONTEXTO-SHOPFLOOR.md §4).
 
 INVARIANTE: todo numero, codigo de alarma, numero de norma y part number que
 aparezca en la respuesta debe aparecer LITERALMENTE en alguno de los chunks

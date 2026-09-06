@@ -1,6 +1,6 @@
 """Generacion con citas, clarificacion y verificacion (local, via Ollama).
 
-Flujo (CONTEXTO-ANVIL.md §3-§4):
+Flujo (CONTEXTO-SHOPFLOOR.md §3-§4):
 
     pasajes -> el modelo TRIA en 3 salidas posibles
                  ANSWER   : los pasajes responden sin ambiguedad
@@ -22,11 +22,11 @@ import re
 import urllib.request
 from dataclasses import dataclass, field
 
-from anvil.ambiguity import detect as detect_ambiguity
-from anvil.retrieve import Hit
-from anvil.verify import VerdictResult, verify
+from shopfloor.ambiguity import detect as detect_ambiguity
+from shopfloor.retrieve import Hit
+from shopfloor.verify import VerdictResult, verify
 
-MODEL = os.environ.get("ANVIL_GEN_MODEL", "qwen2.5-coder:7b")
+MODEL = os.environ.get("SHOPFLOOR_GEN_MODEL", "qwen2.5-coder:7b")
 OLLAMA = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 MAX_RETRY = 1
 

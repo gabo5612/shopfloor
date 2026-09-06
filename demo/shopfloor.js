@@ -1,4 +1,4 @@
-/* anvil — lógica determinista portada del backend Python.
+/* shopfloor — lógica determinista portada del backend Python.
    Lo que corre acá es idéntico a lo que corre en el servidor:
      · búsqueda léxica          (retrieve.py, rama léxica)
      · detección de ambigüedad  (ambiguity.py)

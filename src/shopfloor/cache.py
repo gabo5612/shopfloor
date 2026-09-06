@@ -30,7 +30,7 @@ from dataclasses import dataclass
 
 import psycopg
 
-from anvil.embed.client import embed, to_pgvector
+from shopfloor.embed.client import embed, to_pgvector
 
 SIM_MIN = 0.80          # por debajo de la reformulacion legitima medida (0.8431)
 POOL = 5

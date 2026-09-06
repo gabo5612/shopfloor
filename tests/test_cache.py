@@ -5,7 +5,7 @@ El caso peligroso, medido: "M24 grado 10.9" tiene MAS similitud coseno con
 sola serviria 680 N.m a quien pregunto por el grado 10.9.
 """
 
-from anvil.cache import hash_chunks, terms_of
+from shopfloor.cache import hash_chunks, terms_of
 
 
 def test_reformulacion_conserva_los_terminos():
@@ -60,7 +60,7 @@ def test_una_entrada_stale_no_se_sirve():
     """
     import inspect
 
-    from anvil import cache
+    from shopfloor import cache
     src = inspect.getsource(cache.lookup)
     assert "if stale:" in src and "continue" in src
 
@@ -74,7 +74,7 @@ def test_una_revision_nueva_llega_como_doc_id_distinto():
     """
     import inspect
 
-    from anvil import cache
+    from shopfloor import cache
     assert "mark_dangling_stale" in dir(cache)
     src = inspect.getsource(cache.mark_dangling_stale)
     assert "NOT EXISTS" in src

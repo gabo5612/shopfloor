@@ -1,4 +1,4 @@
-# anvil — cómo funciona
+# shopfloor — cómo funciona
 
 > Guía para entender el sistema sin necesidad de leer el código.
 > Pensada para alguien con conocimientos técnicos básicos.
@@ -15,7 +15,7 @@ Cuando un técnico necesita un dato concreto —*"¿con cuánta fuerza aprieto e
 tiene que abrir el PDF correcto, encontrar la sección correcta y leer la tabla correcta.
 Eso toma entre veinte minutos y media jornada.
 
-**anvil responde esa pregunta en dos segundos, citando el documento y la página.**
+**shopfloor responde esa pregunta en dos segundos, citando el documento y la página.**
 
 ### Por qué no basta con usar ChatGPT
 
@@ -27,20 +27,20 @@ Tres razones, y cualquiera de ellas alcanza:
   un incumplimiento legal.
 - **En planta muchas veces no hay internet.**
 
-Por eso anvil corre **entero dentro de la planta**. Ningún dato sale de la máquina.
+Por eso shopfloor corre **entero dentro de la planta**. Ningún dato sale de la máquina.
 
 ---
 
 ## 2. Las piezas
 
-anvil no es un programa: son cuatro componentes que corren juntos en un servidor.
+shopfloor no es un programa: son cuatro componentes que corren juntos en un servidor.
 
 | Pieza | Qué hace | Comparación |
 |---|---|---|
 | **Postgres + pgvector** | Guarda los documentos troceados y permite buscarlos | Un archivador con dos índices distintos |
 | **bge-m3** | Convierte texto en números para poder comparar significados | El "traductor de ideas a coordenadas" |
 | **Qwen** | Redacta la respuesta en lenguaje natural | El que escribe, no el que decide |
-| **anvil** | La lógica que coordina todo y **verifica** | El supervisor |
+| **shopfloor** | La lógica que coordina todo y **verifica** | El supervisor |
 
 Los dos modelos (`bge-m3` y `Qwen`) son archivos que se descargan una vez y corren en el
 servidor. No llaman a internet.
@@ -135,7 +135,7 @@ dice *"aplicar una capa de lubricante"* — aunque la palabra "limpiar" no apare
 
 ### [2] Buscar de dos formas a la vez
 
-anvil busca **en paralelo** por dos caminos, y esto tiene una razón concreta:
+shopfloor busca **en paralelo** por dos caminos, y esto tiene una razón concreta:
 
 - **Por significado** (embeddings) — encuentra *"cómo aprieto los pernos del cabezal"*
 - **Por palabra exacta** — encuentra `E-114`
@@ -155,9 +155,9 @@ La respuesta correcta no es ninguna de las dos. **Es preguntar.**
 
 ```
 Vos:    ¿cuál es el torque del perno M24 del cabezal?
-anvil:  ¿Para qué grado?   [ 8.8 ]  [ 10.9 ]
+shopfloor:  ¿Para qué grado?   [ 8.8 ]  [ 10.9 ]
 Vos:    (tocás 8.8)
-anvil:  720 ± 30 N·m — Manual LAM-2, Rev F, pág. 1
+shopfloor:  720 ± 30 N·m — Manual LAM-2, Rev F, pág. 1
 ```
 
 **Detalle importante:** esa detección **no la hace el modelo**. Lo probamos: al modelo se le
@@ -228,7 +228,7 @@ que se parezca lo suficiente **y** que mencione exactamente los mismos códigos 
 Este es el escenario peligroso: el manual pasa de Rev D a Rev E, y el torque cambia de 680
 a 720. Una respuesta guardada de la Rev D ahora es **incorrecta y peligrosa**.
 
-anvil lo resuelve así:
+shopfloor lo resuelve así:
 
 1. Detecta que los fragmentos citados cambiaron
 2. **Deja de servir** esa respuesta inmediatamente
@@ -307,11 +307,11 @@ actualización automática por revisión · portal móvil · panel de carga.
 
 Esta sección decía *"todavía no hay una medición formal (…) el siguiente paso es un banco de
 ~50 preguntas con respuestas conocidas, incluyendo preguntas **sin** respuesta"*. **Eso se
-construyó**: es [`assay`](https://github.com/gabo5612/assay), un harness de evals con su
-propio repo, y `anvil` es el primer sistema que midió.
+construyó**: es [`groundcheck`](https://github.com/gabo5612/groundcheck), un harness de evals con su
+propio repo, y `shopfloor` es el primer sistema que midió.
 
 Golden set de 39 preguntas, congelado en git **antes** de que existiera cualquier corrida
-contra `anvil` — esa fecha es lo que hace la métrica auditable por un tercero.
+contra `shopfloor` — esa fecha es lo que hace la métrica auditable por un tercero.
 
 | categoría | n | recall@5 | MRR | grounded | abstención |
 |---|---|---|---|---|---|
@@ -320,7 +320,7 @@ contra `anvil` — esa fecha es lo que hace la métrica auditable por un tercero
 | procedimental | 7 | 0.86 | 0.79 | 1.00 | 1.00 |
 | **control negativo** | 9 | n/a | n/a | — | **0.89 (8/9)** |
 
-Un detalle que vale la pena: la primera lectura dio `grounded 0.18`, y era **falso**. `anvil`
+Un detalle que vale la pena: la primera lectura dio `grounded 0.18`, y era **falso**. `shopfloor`
 responde citando (`720 +/- 30 N.m [1]`) y el harness leía ese `[1]` como un número que había
 que fundamentar — castigaba al sistema **por citar bien**. Se arregló el harness, no el
 golden set; las respuestas ya eran correctas.

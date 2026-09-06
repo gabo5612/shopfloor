@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d10">
-<title>anvil — Asistente on-prem de documentación técnica</title>
+<title>shopfloor — Asistente on-prem de documentación técnica</title>
 <meta name="description" content="Demo estática de un asistente de documentación técnica local-first: búsqueda híbrida, clarificación determinista y verificación de datos contra el documento fuente.">
 <style>
   :root{--bg:#0b0d10;--panel:#14181d;--line:#252c34;--tx:#e8edf2;--dim:#8d99a6;
@@ -56,7 +56,7 @@
 </head>
 <body>
 <header>
-  <div class="brand"><span class="dot"></span> anvil</div>
+  <div class="brand"><span class="dot"></span> shopfloor</div>
   <div class="meta" id="status">cargando corpus…</div>
 </header>
 
@@ -92,7 +92,7 @@
 </footer>
 
 <script type="module">
-import { search, detectAmbiguity, cacheLookup, verify } from './anvil.js';
+import { search, detectAmbiguity, cacheLookup, verify } from './shopfloor.js';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));

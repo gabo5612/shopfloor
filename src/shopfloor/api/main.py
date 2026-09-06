@@ -1,4 +1,4 @@
-"""API de anvil + portal web para la planta.
+"""API de shopfloor + portal web para la planta.
 
 Se sirve en 0.0.0.0 para que cualquier telefono o PC de la LAN lo abra.
 Sin CDN, sin fuentes remotas: la planta puede no tener internet (§1).
@@ -16,18 +16,18 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
-from anvil import cache
-from anvil.ingest import JOBS, backfill_embeddings, refresh_stale, start_job
-from anvil.generate import answer_question
-from anvil.retrieve import search
+from shopfloor import cache
+from shopfloor.ingest import JOBS, backfill_embeddings, refresh_stale, start_job
+from shopfloor.generate import answer_question
+from shopfloor.retrieve import search
 
-UPLOAD_DIR = Path(os.environ.get("ANVIL_DOCS", Path.home() / "anvil-docs"))
+UPLOAD_DIR = Path(os.environ.get("SHOPFLOOR_DOCS", Path.home() / "shopfloor-docs"))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
-DSN = os.environ.get("ANVIL_DSN", "postgresql://anvil:anvil@localhost:5433/anvil")
+DSN = os.environ.get("SHOPFLOOR_DSN", "postgresql://shopfloor:shopfloor@localhost:5433/shopfloor")
 
-app = FastAPI(title="anvil", docs_url="/api/docs")
+app = FastAPI(title="shopfloor", docs_url="/api/docs")
 
 
 class Ask(BaseModel):

@@ -1,9 +1,9 @@
 """PDF -> list[PageBlock] conservando SIEMPRE el numero de pagina.
 
-Decision (CONTEXTO-ANVIL.md §7.1-7.3): se usa docling porque conserva pagina,
+Decision (CONTEXTO-SHOPFLOOR.md §7.1-7.3): se usa docling porque conserva pagina,
 extrae tablas y trae OCR local. Medido: 754 ms/pag con modelos cacheados.
 markitdown es ~30x mas rapido pero descarta el numero de pagina, que es el
-requisito central de anvil.
+requisito central de shopfloor.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
-from anvil.parse.types import BlockKind, PageBlock
+from shopfloor.parse.types import BlockKind, PageBlock
 
 _KIND_BY_LABEL: dict[str, BlockKind] = {
     "table": "table",

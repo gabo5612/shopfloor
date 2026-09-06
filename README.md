@@ -1,4 +1,4 @@
-# anvil
+# shopfloor
 
 Asistente on-prem de documentación técnica. Todo corre dentro de la planta.
 
@@ -6,7 +6,7 @@ Asistente on-prem de documentación técnica. Todo corre dentro de la planta.
 
 ```bash
 docker-compose up -d                     # Postgres 18 + pgvector
-.venv/bin/python -m uvicorn anvil.api.main:app --host 0.0.0.0 --port 8080
+.venv/bin/python -m uvicorn shopfloor.api.main:app --host 0.0.0.0 --port 8080
 ```
 
 ## Accesos
@@ -28,5 +28,5 @@ docker-compose up -d                     # Postgres 18 + pgvector
 
 ## Atribución
 
-Ver `CONTEXTO-ANVIL.md` §7.1: se evaluó y midió `microsoft/markitdown` (MIT) antes de
+Ver `CONTEXTO-SHOPFLOOR.md` §7.1: se evaluó y midió `microsoft/markitdown` (MIT) antes de
 elegir `docling`. Ningún código de markitdown está incorporado en este repo.

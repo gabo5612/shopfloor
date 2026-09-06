@@ -4,7 +4,7 @@ Un .md no tiene paginas. Se pagina por CABECERA de nivel 1-2: cada seccion es
 una "pagina" numerada en orden de aparicion, para que la cita siga siendo
 verificable y apunte a algo que el lector pueda encontrar.
 
-El invariante de anvil se mantiene: nunca se emite un bloque sin page_no.
+El invariante de shopfloor se mantiene: nunca se emite un bloque sin page_no.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from anvil.parse.types import PageBlock
+from shopfloor.parse.types import PageBlock
 
 _H = re.compile(r"^(#{1,6})\s+(.*)$")
 _TABLE_ROW = re.compile(r"^\s*\|.*\|\s*$")

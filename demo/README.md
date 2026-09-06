@@ -1,4 +1,4 @@
-# anvil — demo estática
+# shopfloor — demo estática
 
 Copia funcional para mostrar, sin servidor ni base de datos.
 
@@ -28,8 +28,8 @@ No necesita variables de entorno, base de datos ni build. Son tres archivos est�
 
 ## Regenerar el corpus
 
-Con anvil corriendo local:
+Con shopfloor corriendo local:
 
 ```bash
-.venv/bin/python src/anvil/export_demo.py
+.venv/bin/python src/shopfloor/export_demo.py
 ```

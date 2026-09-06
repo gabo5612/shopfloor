@@ -1,11 +1,13 @@
-# anvil — asistente on-prem de documentación técnica
+# shopfloor — asistente on-prem de documentación técnica
 
 **Fecha:** 2026-09-02
 **Relación:** proyecto insignia del paso 2 de `~/Desktop/Gabo/CONTEXTO-AI-PORTFOLIO-CV.md` §7.
 Es la reorientación del "JARVIS" descrita en §5 de ese documento.
-**Hermano obligatorio:** `~/Desktop/Gabo/assay/CONTEXTO-ASSAY.md` — sin él, esto es
+**Hermano obligatorio:** `~/Desktop/Gabo/groundcheck/CONTEXTO-GROUNDCHECK.md` — sin él, esto es
 "otro RAG que parece que anda".
-**Nombre:** *anvil* = yunque. Coherente con `crew`, `crucible`, `assay`.
+**Nombre:** *shopfloor* = el piso de planta, que es dónde corre y para quién: mantenimiento
+a las 3 de la mañana, sin internet, con el manual del equipo delante. Renombrado desde
+`anvil` el 2026-09-06.
 
 ---
 
@@ -238,7 +240,7 @@ qa.citation(query_id, chunk_id, rank, score_dense, score_lexical, score_rerank)
 | Léxico | `tsvector` en el mismo Postgres | Una sola base, una sola transacción |
 | Rerank | `bge-reranker-v2-m3` | Mismo linaje multilingüe que el embedder |
 | Generación | Qwen local vía Ollama | Ya lo tenés instalado |
-| API / UI | FastAPI + React | Consistente con `crucible` |
+| API / UI | FastAPI + React | Consistente con `feedstock` |
 
 ### 7.1 Por qué NO `markitdown` — decisión medida el 2026-09-02
 
@@ -251,13 +253,13 @@ para formularios sin bordes, y funciona: en la prueba, una tabla de distribució
 salió como tabla Markdown bien formada. Tardó **2,9 s**. Como herramienta de "sacar texto de
 cualquier cosa, rápido", es excelente.
 
-**Los dos descalificadores para `anvil`:**
+**Los dos descalificadores para `shopfloor`:**
 
 1. **No emite números de página.** Verificado en el código fuente — itera `pdf.pages` pero
    une todo con `markdown = "\n\n".join(markdown_chunks)` y **descarta `page_idx`**.
    Confirmado en la salida: **0 referencias a número de página** en todo el documento
    convertido.
-   → `anvil` cita *documento + revisión + **página***. Sin página no hay cita verificable,
+   → `shopfloor` cita *documento + revisión + **página***. Sin página no hay cita verificable,
    y sin cita verificable no hay §4 (el verificador determinista). **Rompe el requisito
    central del proyecto.**
 
@@ -268,7 +270,7 @@ cualquier cosa, rápido", es excelente.
 **`docling` gana por lo que el README declara y markitdown no tiene:** *"Advanced PDF
 understanding incl. page layout, reading order, table structure"* y *"Extensive OCR support
 for scanned PDFs and images"*. Página + orden de lectura + OCR local son exactamente los
-tres ejes que `anvil` necesita.
+tres ejes que `shopfloor` necesita.
 
 ### 7.2 Rendimiento medido — 2026-09-02, Mac local
 
@@ -312,7 +314,7 @@ el caro sólo donde hace falta. La decisión la toma un chequeo de una línea.
 
 Lo valioso de markitdown **no es el parser** (eso es `pdfplumber`, una librería). Es
 `_extract_form_content_from_words`: el clustering de posiciones X que reconstruye **tablas
-sin bordes** — lógica no trivial, ya probada, y exactamente el Problema 1 de `anvil`.
+sin bordes** — lógica no trivial, ya probada, y exactamente el Problema 1 de `shopfloor`.
 
 ```
 TOMAR   : _extract_form_content_from_words + _to_markdown_table
@@ -354,7 +356,7 @@ no estimado**. Regla §8: no inventar métricas.
 | **M4** | **Verificador determinista** | Inyectando a propósito una respuesta con un número inventado, el verificador la rechaza. Test en CI |
 | **M5** | Vigencia de revisión | Con Rev B y Rev D cargadas, responde desde D y marca B como supersedida |
 | **M6** | Abstención | Ante una pregunta cuya respuesta no está en el corpus, se abstiene en vez de estimar |
-| **M7** | `assay` conectado | Las métricas del harness corren contra este sistema y hay un baseline publicado (ver doc de `assay`) |
+| **M7** | `groundcheck` conectado | Las métricas del harness corren contra este sistema y hay un baseline publicado (ver doc de `groundcheck`) |
 | **M8** | Offline real | Corre con el wifi apagado, imágenes y modelos precacheados |
 
 > **Orden crítico:** M7 **no va al final en la práctica**. Ver §11.
@@ -382,7 +384,7 @@ Cierra, de §4 del contexto:
 | ❌ Sustrato on-prem | Todo el RAG sobre Ollama + Postgres auto-hospedado |
 | ❌ Servir modelos on-prem | Embeddings, rerank y generación locales |
 | ❌ Infra / red aislada | `docker compose` sin internet |
-| ❌ Evals de RAG | Vía `assay` (M7) |
+| ❌ Evals de RAG | Vía `groundcheck` (M7) |
 | ❌ Dominio metalúrgico | WPS, torques, LOTO, alarmas, repuestos |
 
 Y sostiene el eje narrativo de §1: **los datos no salen de la máquina.**
@@ -393,7 +395,7 @@ Y sostiene el eje narrativo de §1: **los datos no salen de la máquina.**
 
 1. **Instalar Docker** — `brew install colima docker docker-compose && colima start`. Bloqueante de M0.
 2. **`ollama serve`** y `ollama pull bge-m3` + un Qwen.
-3. **Construir `assay` PRIMERO, con un corpus chico** (20 preguntas, unos pocos PDFs).
+3. **Construir `groundcheck` PRIMERO, con un corpus chico** (20 preguntas, unos pocos PDFs).
    Al revés se termina retro-ajustando el eval para que el sistema apruebe — que es el
    fracaso clásico y silencioso de este tipo de proyecto.
 4. **Conseguir/armar el corpus semilla** antes de M1: sin documentos con tablas reales, el

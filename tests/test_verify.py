@@ -1,6 +1,6 @@
 """Contrato del verificador determinista. Escrito por el arquitecto."""
 
-from anvil.verify import extract_facts, verify
+from shopfloor.verify import extract_facts, verify
 
 DOC = ["El perno M24 grado 8.8 requiere 680 +/- 30 N.m.",
        "Cracks up to 0.50 in. (1.27 cm) are acceptable. See H.R. 471."]

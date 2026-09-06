@@ -17,7 +17,7 @@ from pathlib import Path
 
 import psycopg
 
-DSN = "postgresql://anvil:anvil@localhost:5433/anvil"
+DSN = "postgresql://shopfloor:shopfloor@localhost:5433/shopfloor"
 STOP = {
     "cual", "cuales", "que", "como", "donde", "es", "el", "la", "los", "las",
     "de", "del", "un", "una", "para", "por", "en", "y", "o", "a", "al", "se",

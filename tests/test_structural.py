@@ -3,15 +3,15 @@
 Escrito por el arquitecto ANTES de la implementacion. El obrero implementa
 contra estos tests; no los modifica.
 
-La regla central de anvil (§3, Problema 1): una tabla NUNCA se parte sin
+La regla central de shopfloor (§3, Problema 1): una tabla NUNCA se parte sin
 repetir su encabezado en cada fragmento. Partirla en silencio hace que el
 sistema responda 950 N.m donde el valor correcto es 680.
 """
 
 import pytest
 
-from anvil.chunk.structural import chunk_blocks
-from anvil.parse.types import Chunk, PageBlock
+from shopfloor.chunk.structural import chunk_blocks
+from shopfloor.parse.types import Chunk, PageBlock
 
 HEADER = "| Perno       | Grado | Torque (N.m) |"
 SEP = "|-------------|-------|--------------|"

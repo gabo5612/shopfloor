@@ -1,6 +1,6 @@
 """Retrieval hibrido: denso (pgvector) + lexico (tsvector), fusionados con RRF.
 
-Por que hibrido (CONTEXTO-ANVIL.md §3, Problema 2): un embedding es busqueda
+Por que hibrido (CONTEXTO-SHOPFLOOR.md §3, Problema 2): un embedding es busqueda
 SEMANTICA. Para el modelo 'E-114', 'E-141' y 'E-115' estan a distancia casi nula,
 asi que recuperaria la alarma equivocada. La busqueda lexica captura el codigo
 exacto. RRF los combina sin tener que calibrar escalas incompatibles.
@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 import psycopg
 
-from anvil.embed.client import embed, to_pgvector
+from shopfloor.embed.client import embed, to_pgvector
 
 RRF_K = 60          # constante estandar de Reciprocal Rank Fusion
 POOL = 30           # cuantos trae cada rama antes de fusionar

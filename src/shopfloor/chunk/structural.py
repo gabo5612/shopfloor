@@ -1,4 +1,4 @@
-"""Chunker estructural — el corazon de anvil (CONTEXTO-ANVIL.md §3, Problema 1).
+"""Chunker estructural — el corazon de shopfloor (CONTEXTO-SHOPFLOOR.md §3, Problema 1).
 
 Una tabla NUNCA se parte sin repetir su encabezado en cada fragmento. Partirla en
 silencio hace que el sistema responda 950 N.m donde el valor correcto es 680.
@@ -6,7 +6,7 @@ silencio hace que el sistema responda 950 N.m donde el valor correcto es 680.
 
 from __future__ import annotations
 
-from anvil.parse.types import Chunk, PageBlock
+from shopfloor.parse.types import Chunk, PageBlock
 
 STRATEGY_VERSION = "structural-v1"
 

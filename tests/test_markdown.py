@@ -2,7 +2,7 @@
 
 import textwrap
 
-from anvil.parse.markdown import parse_markdown
+from shopfloor.parse.markdown import parse_markdown
 
 DOC = textwrap.dedent("""\
     # Guia de instalacion
