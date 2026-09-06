@@ -28,20 +28,27 @@ _NUM = re.compile(r"^\d+(?:[.,]\d+)?$")
 # al usuario cual de las dos respuestas queria. Medido sobre la tabla de
 # precalentamiento: "A516 Gr.70 en espesores mayores a 20 mm" devolvia
 # "¿Para que precalentamiento?" con opciones ['ninguno', '95'].
+# Los limites de palabra NO son decorativos: sin ellos "over" matchea dentro de
+# "covers" y "under" dentro de "understand". Medido: "Which military
+# specification covers LUBRICATING OIL..." daba terminos {">"}, el detector
+# dejaba de salir temprano y terminaba pidiendo elegir entre dos siglas de la
+# tabla de abreviaturas. Los simbolos van fuera del \b, que no aplica a ellos.
 _GT = re.compile(
-    r"m[aá]s de|mayor(?:es)?\s+(?:a|que|de)|superior(?:es)?\s+a|arriba de|encima de"
-    r"|por encima de|over|more than|greater than|above|>=|>|≥",
+    r"\b(?:m[aá]s de|mayor(?:es)?\s+(?:a|que|de)|superior(?:es)?\s+a|arriba de"
+    r"|encima de|por encima de|over|more than|greater than|above)\b|>=|>|≥",
     re.I,
 )
 _LT = re.compile(
-    r"hasta|menos de|menor(?:es)?\s+(?:a|que|de)|inferior(?:es)?\s+a|por debajo de"
-    r"|up to|under|less than|below|<=|<|≤",
+    r"\b(?:hasta|menos de|menor(?:es)?\s+(?:a|que|de)|inferior(?:es)?\s+a"
+    r"|por debajo de|up to|under|less than|below)\b|<=|<|≤",
     re.I,
 )
 # Un limite inclusivo incluye su propio numero: "hasta 20" cubre el 20,
 # "menos de 20" no. La diferencia decide si un espesor de 20 mm cae en una
 # fila o en la otra, asi que no se puede aproximar.
-_INCLUSIVE = re.compile(r"hasta|up to|al menos|at least|>=|<=|≥|≤|o m[aá]s|o menos", re.I)
+_INCLUSIVE = re.compile(
+    r"\b(?:hasta|up to|al menos|at least|o m[aá]s|o menos)\b|>=|<=|≥|≤", re.I
+)
 _ANY = re.compile(r"^\s*(cualquiera|cualquier|todos|todas|any|all|-{1,2}|n/?a)\s*$", re.I)
 _RANGE = re.compile(
     r"^\s*(\d+(?:[.,]\d+)?)\s*(?:-|–|a|to|hasta)\s*(\d+(?:[.,]\d+)?)\s*$", re.I

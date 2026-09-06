@@ -36,11 +36,53 @@ SIM_MIN = 0.80          # por debajo de la reformulacion legitima medida (0.8431
 POOL = 5
 
 _TERM = re.compile(r"[A-Za-z]{1,6}[-.]?\d+(?:[.,]\d+)?|\b\d+(?:[.,]\d+)?\b")
+# Siglas del dominio que no traen digitos y por eso _TERM no ve: LOTO, NSN, WPS.
+_ACRONYM = re.compile(r"\b[A-Z]{2,}\b")
+# Nombre propio: palabra con mayuscula que NO abre la pregunta. "Single",
+# "Lifetime", "TrailKit" identifican el sujeto; "Cuanto" solo abre la frase.
+_PROPER = re.compile(r"(?<!^)(?<![.?!¿]\s)\b([A-ZÁÉÍÓÚÑ][\wáéíóúñ]{1,})\b")
+_OPENER = re.compile(r"^[\s¿¡\"'(\[]*")
 
 
 def terms_of(question: str) -> list[str]:
-    """Terminos que identifican QUE se pregunta. Su igualdad es obligatoria."""
-    return sorted({t.lower().replace(",", ".") for t in _TERM.findall(question)})
+    """Terminos que identifican QUE se pregunta. Su igualdad es obligatoria.
+
+    MEDIDO, 2026-09-06: el cache sirvio "$249 unico" —el precio del plan
+    Lifetime— a quien pregunto por el plan Single, con 81% de coincidencia y el
+    sello de "respuesta ya verificada". El guard de terminos no lo impidio
+    porque ninguna de las dos preguntas tiene codigos ni numeros:
+
+        terms_of("¿Cuanto cuesta el plan Single de TrailKit?")   -> []
+        terms_of("¿Cuanto cuesta el plan Lifetime de TrailKit?") -> []
+
+    Dos conjuntos vacios son iguales, asi que la condicion 2 pasaba sin decidir
+    nada: el guard quedaba VACUO justo donde el coseno es menos confiable, que
+    es cuando lo que separa dos preguntas es una palabra y no un codigo. El
+    diseño original se midio contra M24 grado 8.8 vs 10.9 — pares que se
+    distinguen por codigo — y ese sesgo es el agujero.
+
+    Por eso el conjunto incluye ahora tambien los nombres propios y las siglas.
+    Las palabras en minuscula quedan fuera a proposito: son las que cambian
+    entre dos formas de preguntar lo mismo, y el cache existe para servir esas.
+
+        "¿Cuanto cuesta el plan Single de TrailKit?" -> [single, trailkit]
+        "precio del plan Single de TrailKit"         -> [single, trailkit]  MISMO
+        "¿Cuanto cuesta el plan Lifetime de TrailKit?" -> [lifetime, trailkit]
+
+    Si alguien escribe todo en minuscula el conjunto vuelve a quedar corto,
+    pero el fallo cae del lado seguro: una entrada guardada con [single,
+    trailkit] ya no empata con [], asi que el cache falla el acierto y se
+    vuelve a responder. Perder un acierto cuesta latencia; servir el precio
+    equivocado cuesta la confianza en el sistema entero.
+
+    Las filas guardadas con el extractor viejo tienen conjuntos mas chicos y
+    dejan de empatar: se re-responden y se re-guardan solas. No hay migracion.
+    """
+    body = _OPENER.sub("", question)
+    found = set(_TERM.findall(question))
+    found |= set(_ACRONYM.findall(question))
+    found |= set(_PROPER.findall(body))
+    return sorted({t.lower().replace(",", ".") for t in found})
 
 
 def hash_chunks(rows: list[tuple[int, str]]) -> str:

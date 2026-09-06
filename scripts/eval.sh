@@ -36,8 +36,15 @@ RUN="$(ls -t runs/*.json | head -1)"
 
 if [ "${1:-}" = "--rebaseline" ]; then
   # Deliberate act, never automatic: a baseline that moves on its own measures
-  # nothing. The diff prints first so whoever runs this sees what they accept.
-  "$GC" diff "$BASELINE" "$RUN" || true
+  # nothing. What is about to be accepted prints first.
+  #
+  # `gate`, not `diff`: diff takes two runs and the baseline is a report
+  # (`report --json`), which carries no observations. Passing it to diff
+  # crashed with KeyError: 'observations', swallowed by a `|| true` — the
+  # rebaseline looked clean while showing nothing at all.
+  echo "── cambios respecto del piso actual ─────────────────────────"
+  "$GC" gate "$RUN" --against "$BASELINE" || true
+  echo "─────────────────────────────────────────────────────────────"
   "$GC" report "$RUN" --json > "$BASELINE"
   echo "baseline reescrito: $BASELINE"
   exit 0

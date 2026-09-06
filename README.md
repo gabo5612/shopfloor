@@ -93,6 +93,16 @@ does not match the entity in the question.** That is the same failure the determ
 ambiguity detector already handles for markdown tables, and it needs the equivalent for
 prose and for parts lists. It is the next thing to fix, and it is measured.
 
+**A third instance of it, found and fixed.** The semantic cache served `$249 one-off` — the
+*Lifetime* price — to someone asking about the *Single* plan, at 81% similarity and labelled
+"already verified". A cache hit requires cosine ≥ 0.80 **and** an identical set of technical
+terms, and that second condition was designed against M24 grade 8.8 vs 10.9 — pairs told
+apart by a code. Neither pricing question contains a code, so both term sets were empty,
+two empty sets are equal, and the guard passed without deciding anything: **vacuous exactly
+where cosine is least trustworthy.** Proper nouns and acronyms now count as terms, so
+`Single` ≠ `Lifetime` while *"how much is the Single plan"* and *"price of the Single plan"*
+still match — which is what a cache is for.
+
 **The metrics are stable, the wording is not.** Two independent runs eight minutes apart
 differ textually in 38 of the 39 answers — the local model is not deterministic — and produce
 **exactly the same table**. What is being measured survives the rewording, which is the

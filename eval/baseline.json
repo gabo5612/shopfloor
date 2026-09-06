@@ -39,10 +39,10 @@
           "rate": 1.0
         },
         "forbidden_codes_absent": {
-          "passed": 1,
+          "passed": 2,
           "verifiable": 2,
           "total": 15,
-          "rate": 0.5
+          "rate": 1.0
         },
         "forbidden_numbers_absent": {
           "passed": 10,
@@ -51,10 +51,10 @@
           "rate": 0.9090909090909091
         },
         "gold_numbers_present": {
-          "passed": 8,
+          "passed": 9,
           "verifiable": 11,
           "total": 15,
-          "rate": 0.7272727272727273
+          "rate": 0.8181818181818182
         },
         "grounded": {
           "passed": 11,

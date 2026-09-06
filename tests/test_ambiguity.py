@@ -109,3 +109,19 @@ def test_no_se_repregunta_por_una_columna_sin_nombre():
     no tiene nombre no puede nombrar un criterio."""
     a = detect("How many major parts does the M9 scabbard consist of?", [JUNK])
     assert a is None
+
+
+def test_un_comparador_dentro_de_otra_palabra_no_cuenta():
+    """'over' vive dentro de 'covers' y 'under' dentro de 'understand'. Sin
+    limites de palabra, una pregunta en ingles sin ningun numero salia con
+    terminos {'>'}, el detector dejaba de cortar temprano y terminaba pidiendo
+    elegir entre dos siglas de la tabla de abreviaturas del TM — para una
+    pregunta que el manual contesta."""
+    from shopfloor.ambiguity import _terms
+
+    assert _terms("Which specification covers LUBRICATING OIL (LAW)?") == set()
+    assert _terms("I do not understand the M9") == {"m9"}
+    # y los comparadores de verdad siguen contando
+    assert ">" in _terms("thickness over 20 mm")
+    assert ">" in _terms("espesores mayores a 20 mm")
+    assert "<" in _terms("hasta 20 mm")

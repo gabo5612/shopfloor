@@ -133,12 +133,34 @@ def answer_question(question: str, hits: list[Hit], *, lang: str = "es") -> Gene
             # las opciones tambien se verifican: no puede ofrecer un grado inexistente
             v = verify(" ".join(opts), texts)
             if v.passed and len(opts) >= 2:
-                return Generated(
-                    needs_clarification=True,
-                    clarify_question=str(d.get("question") or "").strip()
-                    or "Falta un dato para responder con precision.",
-                    options=opts, verdict=v, retries=attempt,
-                )
+                # Llegar aca significa que `detect` ya miro estos mismos pasajes
+                # y dijo que NO falta ningun dato: si hubiera ambiguedad real se
+                # habria devuelto arriba. Reenviar igual la repregunta del modelo
+                # es volver a delegarle la decision que este modulo le quita a
+                # proposito.
+                #
+                # MEDIDO 2026-09-06: ante "Which military specification covers
+                # LUBRICATING OIL, WEAPONS LOW TEMPERATURE (LAW)?" —que el manual
+                # contesta— devolvia "¿Para que abbreviation/acronym?" con
+                # opciones ['CAGEC', 'SMR'], dos siglas de la tabla de
+                # abreviaturas que no tienen nada que ver con lo preguntado. Las
+                # opciones existen en los pasajes, asi que `verify` las aprueba:
+                # el verificador comprueba procedencia, no pertinencia.
+                #
+                # Se lo empuja una vez a decidir. Si insiste, se abstiene: una
+                # repregunta que nadie pidio bloquea al tecnico igual que el
+                # silencio, y encima parece que el sistema entendio.
+                if attempt < MAX_RETRY:
+                    messages += [
+                        {"role": "assistant", "content": json.dumps(d)},
+                        {"role": "user", "content":
+                         "La verificacion determinista ya reviso estos pasajes y "
+                         "no falta ningun dato para responder. Responde con "
+                         '{"status":"answer"} usando solo los pasajes, o con '
+                         '{"status":"abstain"} si la respuesta no esta en ellos.'},
+                    ]
+                    continue
+                return Generated(abstained=True, verdict=v, retries=attempt)
             verdict = v  # opciones inventadas: cae al reintento
 
         elif status == "answer":
