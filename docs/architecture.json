@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "shopfloor — On-Prem Technical Documentation Assistant",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "index-manual", "label": "Index a manual", "focus": ["admin", "parse", "chunk", "embed", "postgres"], "note": "A PDF is parsed with its page numbers intact, chunked structurally, embedded locally and stored." },
+      { "id": "answer", "label": "Answer a question", "focus": ["portal", "api", "retrieve", "generate", "verify"], "note": "Hybrid retrieval feeds a local model, and no figure reaches the operator unverified." },
+      { "id": "refuse", "label": "When it asks instead", "focus": ["retrieve", "ambiguity", "generate", "verify"], "note": "Two deterministic gates decide to ask or stay quiet — neither is a model grading a model." }
+    ]
+  },
+  "components": [
+    { "id": "cache",     "type": "security",   "label": "Semantic Cache",    "sublabel": "cosine + same terms",    "pos": [302, 100],  "size": [142, 58] },
+    { "id": "ambiguity", "type": "security",   "label": "Ambiguity Guard",   "sublabel": "reads the table itself", "pos": [826, 100],  "size": [142, 58] },
+    { "id": "portal",    "type": "frontend",   "label": "Query Portal",      "sublabel": "offline · mobile",       "pos": [40, 280],   "size": [142, 58] },
+    { "id": "api",       "type": "backend",    "label": "FastAPI",           "sublabel": "shopfloor.api.main",     "pos": [302, 280],  "size": [142, 58] },
+    { "id": "retrieve",  "type": "backend",    "label": "Hybrid Retrieval",  "sublabel": "dense + lexical · RRF",  "pos": [564, 280],  "size": [142, 58] },
+    { "id": "generate",  "type": "backend",    "label": "Answer Writer",     "sublabel": "local Qwen · triage",    "pos": [826, 280],  "size": [142, 58] },
+    { "id": "verify",    "type": "security",   "label": "Number Verifier",   "sublabel": "literal set comparison", "pos": [1088, 280], "size": [142, 58] },
+    { "id": "admin",     "type": "frontend",   "label": "Upload Panel",      "sublabel": "/admin",                 "pos": [40, 460],   "size": [142, 58] },
+    { "id": "parse",     "type": "backend",    "label": "parse/",            "sublabel": "docling · page numbers", "pos": [302, 460],  "size": [142, 58] },
+    { "id": "chunk",     "type": "backend",    "label": "chunk/",            "sublabel": "structural",             "pos": [564, 460],  "size": [142, 58] },
+    { "id": "embed",     "type": "backend",    "label": "embed/",            "sublabel": "bge-m3, local",          "pos": [826, 460],  "size": [142, 58] },
+    { "id": "postgres",  "type": "database",   "label": "Postgres 18",       "sublabel": "pgvector + tsvector",    "pos": [1088, 460], "size": [142, 58] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Plant network — no outbound access, no API keys", "wraps": ["cache", "ambiguity", "portal", "api", "retrieve", "generate", "verify", "admin", "parse", "chunk", "embed", "postgres"], "pad": 26 }
+  ],
+  "connections": [
+    { "from": "portal",   "to": "api",       "label": "HTTP",              "variant": "emphasis" },
+    { "from": "api",      "to": "cache",     "label": "hit or miss",       "variant": "dashed", "labelAt": [373, 219] },
+    { "from": "api",      "to": "retrieve",  "label": "question",          "variant": "emphasis" },
+    { "from": "retrieve", "to": "ambiguity", "label": "matching rows",     "fromSide": "top", "toSide": "bottom" },
+    { "from": "retrieve", "to": "generate",  "label": "top-k · RRF",       "variant": "emphasis" },
+    { "from": "generate", "to": "verify",    "label": "answer + cites",    "variant": "emphasis" },
+    { "from": "admin",    "to": "parse",     "label": "upload PDF" },
+    { "from": "parse",    "to": "chunk",     "label": "pages preserved" },
+    { "from": "chunk",    "to": "embed",     "label": "structural chunks" },
+    { "from": "embed",    "to": "postgres",  "label": "vectors + text" },
+    { "from": "retrieve", "to": "postgres",  "label": "dense + lexical",   "fromSide": "bottom", "toSide": "top" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Why retrieval is hybrid", "items": ["To an embedding, 'E-114', 'E-141' and 'E-115' sit at near-zero distance", "Lexical search catches the exact alarm code the operator typed", "RRF fuses both without calibrating two incompatible score scales"] },
+    { "dot": "rose", "title": "Ambiguity is not the model's call", "items": ["Table 4-7: M24 grade 8.8 is 720 N.m, grade 10.9 is 950 N.m", "Asked for 'the M24 torque', the model picks 720 with full confidence", "Detected on the table instead: >1 matching row, differing values, so ask"] },
+    { "dot": "emerald", "title": "Verified, not trusted", "items": ["Every number, alarm code and part number must appear literally in a cited chunk", "If it does not, the answer is rejected — normalisation and set comparison, not a judge", "56 tests, and groundcheck measures all of it against a frozen golden set"] }
+  ]
+}
